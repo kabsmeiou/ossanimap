@@ -8,3 +8,7 @@ wheels/
 
 # Virtual environments
 .venv
+
+# other files
+IMPLEMENTATION_SUMMARY.md
+PACK_GENERATION.md

@@ -1,5 +1,14 @@
-from pydantic import BaseModel
-from typing import List, Optional, Any
+from pydantic import BaseModel, field_validator
+from typing import List, Optional, Any, Union
+
+# Mode mapping for string to int conversion, according to chimu.moe(discord)
+MODE_MAP = {
+    "all": -1,
+    "osu": 0,
+    "taiko": 1,
+    "ctb": 2,
+    "mania": 3,
+}
 
 # next: omit fields that are not necessary for basic beatmapset info
 class Beatmap(BaseModel):
@@ -21,7 +30,7 @@ class Beatmap(BaseModel):
     hit_length: int
     id: int
     is_scoreable: bool
-    mode: int
+    mode: Union[int, str]  # Can be "osu", "taiko", "fruits", "mania" or 0-3
     mode_int: int
     passcount: int
     playcount: int
@@ -34,6 +43,14 @@ class Beatmap(BaseModel):
     last_checked: int
     last_updated: int
     max_combo: Optional[int] = None
+    
+    @field_validator('mode', mode='before')
+    @classmethod
+    def convert_mode(cls, v):
+        """Convert mode string to integer if needed"""
+        if isinstance(v, str):
+            return MODE_MAP.get(v.lower(), 0)
+        return v
 
 class Availability(BaseModel):
     download_disabled: bool
@@ -43,54 +60,30 @@ class Genre(BaseModel):
     id: int
     name: str
 
-class Language(BaseModel):
-    id: int
-    name: str
-
-class NominationSummary(BaseModel):
-    current: int
-    required: int
-
 class Beatmapset(BaseModel):
     id: int
     artist: str
     availability: Availability
     beatmaps: List[Beatmap]
-    bpm: float
-    can_be_hyped: bool
     converts: List[Any]
     creator: str
-    current_nominations: List[Any]
-    deleted_at: Optional[str] = None
-    description: Any
-    discussion_enabled: bool
-    discussion_locked: bool
     favourite_count: int
     genre: Genre
-    has_favourited: Optional[bool] = None
-    hype: Any
-    is_scoreable: bool
-    language: Language
-    last_checked: int
-    last_updated: int
-    nominations_summary: NominationSummary
     nsfw: bool
-    offset: int
-    pack_tags: List[str]
-    play_count: int
-    ranked: int
-    ranked_date: int
     rating: float
     ratings: List[float]
-    related_users: List[Any]
     source: str
-    spotlight: bool
     status: str
-    storyboard: bool
-    submitted_date: int
-    tags: List[str]
+    tags: Union[List[str], str]  # Can be a string or list
     title: str
     title_unicode: str
     track_id: Optional[int] = None
-    user_id: int
-    video: bool
+    
+    @field_validator('tags', mode='before')
+    @classmethod
+    def convert_tags(cls, v):
+        """Convert tags string to list if needed"""
+        if isinstance(v, str):
+            # Split by spaces and filter empty strings
+            return [tag.strip() for tag in v.split() if tag.strip()]
+        return v

@@ -2,11 +2,15 @@ from typing import Union
 
 from fastapi import FastAPI
 
-from app.api.routes import beatmaps
+from app.api.routes import packs
 
-app = FastAPI()
+app = FastAPI(
+    title="ossanimap",
+    description="osu! beatmapset packager that aggregates ranked/loved osu! beatmaps into downloadable packages grouped by anime name",
+    version="0.1.0"
+)
 
-app.include_router(beatmaps.router)
+app.include_router(packs.router)
 
 @app.get("/")
 def read_root() -> Union[dict, str]:
