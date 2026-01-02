@@ -1,13 +1,12 @@
-from pydantic import BaseModel
+from sqlalchemy import String, Integer, Text
+from sqlalchemy.orm import Mapped, mapped_column
+from datetime import datetime
 from typing import Optional
 
-class Anime(BaseModel):
-    id: int
-    name: str
-    slug: str
-    year: Optional[int] = None
-    season: Optional[str] = None
-    media_format: str
-    synopsis: Optional[str] = None
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
+class AnimeDB(Base): # type: ignore
+    __tablename__ = "animes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    slug: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    synopsis: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
