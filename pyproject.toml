@@ -7,5 +7,6 @@ requires-python = ">=3.12"
 dependencies = [
     "fastapi[standard]>=0.128.0",
     "pytest>=9.0.2",
+    "pytest-mock>=3.15.1",
     "requests>=2.32.5",
 ]

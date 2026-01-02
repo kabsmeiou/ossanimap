@@ -3,7 +3,7 @@ from datetime import datetime
 import logging
 
 from app.models.anime import Anime
-from app.models.osu import Beatmapset
+from app.schemas.osu import Beatmapset
 from app.schemas.pack import Pack
 from app.services.animethemes import get_anime_metadata
 from app.services.chimu import search_for_beatmaps
