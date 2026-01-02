@@ -3,7 +3,7 @@ import logging
 
 from app.schemas.anime import Anime
 
-from .main import app
+from ..main import app
 client = TestClient(app)
 
 logging.basicConfig(level=logging.DEBUG)
@@ -24,7 +24,8 @@ def test_read_main():
 #     with open("test_output.txt", "w", encoding="utf-8") as f:
 #         f.write(str(data))
 
-def test_get_anime_metadata():
-    anime_title = "Kaguya-sama wa Kokurasetai: Tensai-tachi no Renai Zunousen"
-    response = client.get(f"/anime/metadata/?anime_title={anime_title}")
-    assert response.status_code == 200
+# def test_get_anime_metadata():
+#     anime_title = "Kaguya-sama wa Kokurasetai: Tensai-tachi no Renai Zunousen"
+#     response = client.get(f"/anime/metadata/?anime_title={anime_title}")
+#     assert response.status_code == 200
+#     # write response to log

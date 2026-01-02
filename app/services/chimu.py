@@ -1,6 +1,6 @@
 from typing import List, Optional
 import httpx
-from app.models.osu import Beatmapset
+from app.schemas.osu import Beatmapset
 
 CHIMU_URL = "https://catboy.best/"
 
