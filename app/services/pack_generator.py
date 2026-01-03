@@ -2,11 +2,15 @@ from typing import List, Optional
 from datetime import datetime
 import logging
 
-from app.models.anime import Anime
+from app.schemas.anime import Anime
 from app.schemas.osu import Beatmapset
 from app.schemas.pack import Pack
 from app.services.animethemes import get_anime_metadata
 from app.services.chimu import search_for_beatmaps
+from app.db.models.pack import PackDB
+from app.db.models.anime import AnimeDB
+from app.db.session import SessionLocal
+from app.db.services import save_pack
 
 logger = logging.getLogger(__name__)
 
@@ -26,10 +30,6 @@ class PackGenerator:
     3. Filter and collect beatmapset IDs
     4. Create Pack object with metadata
     """
-    
-    def __init__(self):
-        self.pack_id_counter = 1  # TODO: Replace with database auto-increment
-    
     def generate_pack_from_anime(
         self,
         anime_name: str,
@@ -75,8 +75,19 @@ class PackGenerator:
                 anime_synopsis=anime_metadata.synopsis,
                 beatmapset_ids=beatmapset_ids
             )
+
             logger.info(f"Pack created successfully: {pack.name}")
             
+            # save to databse after successful creation
+            with SessionLocal() as session:
+               try:
+                   save_pack(session, anime_metadata, pack)
+                   logger.info(f"Pack and Anime saved to database successfully")
+               except Exception as e:
+                   logger.error(f"Failed to save Pack and Anime to database: {str(e)}")
+                   session.rollback()
+                   raise PackGenerationError(f"Database save error: {str(e)}")
+
             return pack
             
         except Exception as e:
@@ -171,13 +182,10 @@ class PackGenerator:
         Returns:
             Pack: Newly created Pack object
         """
-        current_time = datetime.now(datetime.timezone.utc).isoformat()
-        
         # Generate pack name (e.g., "Bakemonogatari - Ranked Maps")
         pack_name = self._generate_pack_name(anime_title, len(beatmapset_ids))
         
         pack = Pack(
-            id=self.pack_id_counter,
             name=pack_name,
             anime_title=anime_title,
             anime_slug=anime_slug,
@@ -185,13 +193,8 @@ class PackGenerator:
             beatmapset_ids=beatmapset_ids,
             beatmapset_count=len(beatmapset_ids),
             downloads=0,
-            created_at=current_time,
-            updated_at=current_time
         )
-        
-        # TODO: Save to database instead of incrementing in-memory counter
-        self.pack_id_counter += 1
-        
+    
         return pack
     
     def _generate_pack_name(self, anime_title: str, beatmapset_count: int) -> str:

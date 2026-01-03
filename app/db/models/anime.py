@@ -1,9 +1,10 @@
 from sqlalchemy import String, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column
-from datetime import datetime
 from typing import Optional
 
-class AnimeDB(Base): # type: ignore
+from .base import Base
+
+class AnimeDB(Base):
     __tablename__ = "animes"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=False)
