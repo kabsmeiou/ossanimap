@@ -12,7 +12,3 @@ app = FastAPI(
 
 app.include_router(packs.router)
 app.include_router(anime.router)
-
-@app.get("/")
-def read_root() -> Union[dict, str]:
-    return {"Hello": "World"}

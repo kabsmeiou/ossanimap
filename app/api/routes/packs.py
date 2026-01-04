@@ -117,7 +117,7 @@ async def increment_pack_downloads(pack_id: int):
     return {"message": f"Download count incremented for pack ID {pack_id}"}
 
 @router.delete("/{pack_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_pack(pack_id: int):
+async def delete_pack(pack_id: int, session: Session = Depends(get_session)):
     """
     Delete a pack by ID.
     
@@ -133,8 +133,7 @@ async def delete_pack(pack_id: int):
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Pack with ID {pack_id} not found"
         )
-    
-    with SessionLocal() as session:
-        delete_pack_from_db(session, pack_id)
-        packs_storage = [p for p in packs_storage if p.id != pack_id]
+
+    delete_pack_from_db(session, pack_id)
+    packs_storage = [p for p in packs_storage if p.id != pack_id]
     logger.info(f"Pack {pack_id} deleted successfully")

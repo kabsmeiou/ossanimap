@@ -39,13 +39,3 @@ def download_beatmapset(beatmapset_id: int) -> bytes:
         response = client.get(f"d/{beatmapset_id}")
         response.raise_for_status()
     return response.content
-
-# next
-# downloading beatmapsets
-# getting anime metadata from animetheme
-# omitting unnecessary fields in schemas
-# setting up models for database storage
-# caching results
-# artifact packaging
-# dealing with rate limits
-# error handling and retries
