@@ -45,6 +45,15 @@ def get_pack_by_id(session, pack_id):
     result = session.scalars(stmt).first()
     return result
 
+def increment_pack_downloads(session, pack_id):
+    """Increments the download count for a specific pack."""
+    pack = get_pack_by_id(session, pack_id)
+    if pack:
+        pack.downloads += 1
+        session.commit()
+        return True
+    return False
+
 def get_anime_by_slug(session, slug):
     """Retrieves an anime by its slug."""
     stmt = select(AnimeDB).where(AnimeDB.slug == slug)

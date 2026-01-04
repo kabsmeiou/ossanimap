@@ -2,7 +2,7 @@ from typing import Union
 
 from fastapi import FastAPI
 
-from app.api.routes import packs
+from app.api.routes import packs, anime
 
 app = FastAPI(
     title="ossanimap",
@@ -11,6 +11,7 @@ app = FastAPI(
 )
 
 app.include_router(packs.router)
+app.include_router(anime.router)
 
 @app.get("/")
 def read_root() -> Union[dict, str]:
