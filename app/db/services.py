@@ -21,7 +21,7 @@ def save_pack(session, anime_metadata, pack):
             pass
 
     session.add(anime_db)
-    session.flush()  # assign anime_db.id without committing
+    session.flush() # flush both anime and pack to assign IDs without committing
 
     pack_db = PackDB(
         name=pack.name,
@@ -29,7 +29,7 @@ def save_pack(session, anime_metadata, pack):
         beatmapset_ids=pack.beatmapset_ids,
     )
     session.add(pack_db)
-    session.flush()  # assign pack_db.id without committing
+    session.flush()
 
     return pack_db
 
@@ -53,12 +53,6 @@ def increment_pack_downloads(session, pack_id):
         session.commit()
         return True
     return False
-
-def get_anime_by_slug(session, slug):
-    """Retrieves an anime by its slug."""
-    stmt = select(AnimeDB).where(AnimeDB.slug == slug)
-    result = session.scalars(stmt).first()
-    return result
 
 def delete_pack(session, pack_id) -> bool:
     """

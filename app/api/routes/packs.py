@@ -35,8 +35,6 @@ async def create_pack(request: PackCreateRequest):
     try:
         logger.info(f"Creating pack for anime: {request.anime_name}")
         
-        # Generate the pack
-        # generate_pack_from_anime include a save to database step
         pack = pack_generator.generate_pack_from_anime(
             anime_name=request.anime_name,
             status=request.status,
@@ -70,7 +68,6 @@ async def list_packs(session: Session = Depends(get_session)):
     Returns:
         List of all Pack objects
     """
-    # format packs from database models to schemas
     packs_db = list_packs_from_db(session=session)
     packs = [packdb_to_packschema(p) for p in packs_db]
     return packs
@@ -87,7 +84,6 @@ async def get_pack(pack_id: int, session: Session = Depends(get_session)) -> Pac
         Pack object with metadata
     """
     pack = get_pack_by_id(session, pack_id)
-    # map fields from PackDB to Pack schema (since they differ)
     if pack:
         pack = packdb_to_packschema(pack)
 
@@ -123,6 +119,7 @@ async def delete_pack(pack_id: int, session: Session = Depends(get_session)):
     
     Args:
         pack_id: The unique pack identifier
+        session: Database session dependency
     """
     global packs_storage
     
