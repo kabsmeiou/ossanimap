@@ -116,21 +116,6 @@ async def increment_pack_downloads(pack_id: int):
         )
     return {"message": f"Download count incremented for pack ID {pack_id}"}
 
-
-@router.get("/search/")
-async def search_packs(anime_name: str):
-    """
-    Search for packs by anime name.
-    
-    Args:
-        anime_name: Partial or full anime name to search for
-    
-    Returns:
-        List of matching Pack objects
-    """    
-    
-
-
 @router.delete("/{pack_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_pack(pack_id: int):
     """
