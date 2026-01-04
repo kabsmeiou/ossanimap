@@ -12,3 +12,5 @@ wheels/
 # other files
 IMPLEMENTATION_SUMMARY.md
 PACK_GENERATION.md
+
+.env

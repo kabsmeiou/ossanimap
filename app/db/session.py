@@ -1,10 +1,19 @@
+import os
+from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
-from .base import Base
 
-engine = create_engine("sqlite+pysqlite:///:memory:", echo=True)
+load_dotenv()
 
-Base.metadata.create_all(bind=engine)
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+pysqlite:///./dev.db")
+
+engine = create_engine(
+    DATABASE_URL,
+    echo=True,
+    future=True,
+)
+
+# Base.metadata.create_all(bind=engine)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
