@@ -10,7 +10,6 @@ class PackDB(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    # foreign key should reference the `anime` table
     anime_id: Mapped[int] = mapped_column(ForeignKey("anime.id"), nullable=False)
     # store beatmapset IDs as JSON for DB portability (works on SQLite/Postgres)
     beatmapset_ids: Mapped[List[int]] = mapped_column(JSON, nullable=False)

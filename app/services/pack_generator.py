@@ -10,6 +10,7 @@ from app.services.chimu import search_for_beatmaps
 from app.db.session import SessionLocal
 from app.db.services import save_pack
 from app.utils.format import packdb_to_packschema
+from app.schemas.osu import MODE_MAP
 
 logger = logging.getLogger(__name__)
 
@@ -32,16 +33,16 @@ class PackGenerator:
     def generate_pack_from_anime(
         self,
         anime_name: str,
-        status: int = 1,  # 1 = ranked, 2 = loved
-        mode: Optional[int] = 0,  # -1 = all modes, 0 = standard, 1 = taiko, 2 = catch, 3 = mania)
+        status: int = 1,
+        mode: int = -1,
     ) -> Pack:
         """
         Orchestrator for generating a beatmap pack for a given anime name.
         
         Args:
             anime_name: The name of the anime (e.g., "Bakemonogatari", "Steins;Gate")
-            status: Beatmap status filter (1=ranked, 2=loved)
-            mode: Game mode filter (None=all, 0=standard, 1=taiko, 2=catch, 3=mania)
+            status: Beatmap status filter (1=ranked)
+            mode: Game mode filter (-1=all, 0=standard)
         
         Returns:
             Pack: A Pack object containing anime info and beatmapset IDs
@@ -72,7 +73,8 @@ class PackGenerator:
                 anime_title=anime_metadata.name,
                 anime_slug=anime_metadata.slug,
                 anime_synopsis=anime_metadata.synopsis,
-                beatmapset_ids=beatmapset_ids
+                beatmapset_ids=beatmapset_ids,
+                mode=mode
             )
 
             logger.info(f"Pack created successfully: {pack.name}")
@@ -117,7 +119,7 @@ class PackGenerator:
         self,
         anime_title: str,
         status: int,
-        mode: Optional[int]
+        mode: int = -1
     ) -> List[Beatmapset]:
         """
         Search for beatmapsets using the anime title.
@@ -137,8 +139,6 @@ class PackGenerator:
         try:
             # Enclose anime title in quotes for exact search
             search_query = f'"{anime_title}"'
-            
-            # Search with specified filters
             if mode is not None:
                 beatmapsets = search_for_beatmaps(search_query, status=status, mode=mode)
             else:
@@ -161,7 +161,7 @@ class PackGenerator:
         """
         # Use set to ensure uniqueness, then convert back to sorted list
         beatmapset_ids = list(set(beatmapset.id for beatmapset in beatmapsets))
-        beatmapset_ids.sort()  # Sort for consistency
+        beatmapset_ids.sort()
         return beatmapset_ids
     
     def _create_pack(
@@ -170,6 +170,7 @@ class PackGenerator:
         anime_slug: str,
         anime_synopsis: Optional[str],
         beatmapset_ids: List[int],
+        mode: int = -1
     ) -> PackCreate:
         """
         Create a Pack object with the collected data.
@@ -184,7 +185,7 @@ class PackGenerator:
             PackCreate: Newly created PackCreate object
         """
         # Generate pack name (e.g., "Bakemonogatari - Ranked Maps")
-        pack_name = self._generate_pack_name(anime_title, len(beatmapset_ids))
+        pack_name = self._generate_pack_name(anime_title, len(beatmapset_ids), mode=mode)
         
         pack = PackCreate(
             name=pack_name,
@@ -196,7 +197,7 @@ class PackGenerator:
     
         return pack
     
-    def _generate_pack_name(self, anime_title: str, beatmapset_count: int) -> str:
+    def _generate_pack_name(self, anime_title: str, beatmapset_count: int, mode: int) -> str:
         """
         Generate a descriptive pack name.
         
@@ -207,14 +208,13 @@ class PackGenerator:
         Returns:
             str: Generated pack name
         """
-        return f"{anime_title} - Ranked Maps ({beatmapset_count} beatmapsets)"
+        return f"{anime_title} - Ranked Maps ({beatmapset_count} beatmapsets) - {MODE_MAP.get(mode, 'All Modes')}"
     
-    # i think we have to assume here that the titles are found exactly from animethemes.moe. in this regard, perhaps we can implement a search for anime title connected to animethemes and fetch the metadata if user selects it.
     def generate_packs_batch(
         self,
         anime_names: List[str],
         status: int = 1,
-        mode: Optional[int] = None
+        mode: int = -1
     ) -> List[Pack]:
         """
         Generate multiple packs from a list of anime names.

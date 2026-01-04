@@ -6,8 +6,7 @@ from ..base import Base
 
 class AnimeDB(Base):
     __tablename__ = "anime"
-
-    # allow autoincrement for DB-assigned IDs; external IDs can still be set manually
+    
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)

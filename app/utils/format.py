@@ -16,7 +16,7 @@ def format_anime_title_for_animethemes(anime_title: str) -> str:
 
 def packdb_to_packschema(pack_db: PackDB) -> Pack:
     """
-    Convert a Pack database model instance to a Pack schema dictionary.
+    Convert a Pack database model instance to a Pack schema dictionary. used for DB objects to API responses.
     """
     # load anime metadata from anime_id foreign key
     return Pack(

@@ -26,9 +26,6 @@ def search_anime_by_name(anime_name: str) -> list[AnimeSearchResult]:
         params = {"q": anime_name, "fields[search]": "anime"}
         response = requests.get(f"{ANIMETHEMES_URL}search", params=params)
         response.raise_for_status()
-        # show where the request is being sent (the url)
-        logger.info(f"Anime search request URL: {response.url}")
-        logger.info(f"Anime search response: {response.text}")
     except requests.RequestException as e:
         raise Exception(f"Error connecting to animethemes API: {str(e)}")
     # data contains {search: {anime: [...]. animethemes: [...]} }

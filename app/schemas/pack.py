@@ -28,7 +28,7 @@ class PackCreate(BaseModel):
     synopsis: Optional[str] = Field(default=None, description="Brief synopsis of the anime")
     beatmapset_ids: List[int] = Field(..., description="List of beatmapset IDs in this pack")
 
-# allow users to requests for pack creation and decide the status and mode
+
 class PackCreateRequest(BaseModel):
     """
     Request model for creating a new pack.

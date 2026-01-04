@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field
 from typing import List, Optional, Union
 
 # Mode mapping for string to int conversion, according to chimu.moe(discord)
+# for now, only use std
 MODE_MAP = {
     "all": -1,
     "osu": 0,
@@ -10,12 +11,11 @@ MODE_MAP = {
     "mania": 3,
 }
 
-# next: omit fields that are not necessary for basic beatmapset info
 class Beatmap(BaseModel):
     beatmapset_id: int = Field(..., description="beatmapset_id")
     difficulty_rating: float = Field(..., description="difficulty_rating")
     id: int = Field(..., description="id")
-    mode: Union[int, str] = Field(..., description="mode") # Can be "osu", "taiko", "fruits", "mania" or 0-3
+    mode: Union[int, str] = Field(..., description="mode")
     mode_int: int = Field(..., description="osu game mode")
     status: str = Field(..., description="status of the beatmap")
     total_length: int = Field(..., description="total length of the beatmap in seconds")
