@@ -4,13 +4,12 @@ import logging
 
 from app.schemas.anime import Anime
 from app.schemas.osu import Beatmapset
-from app.schemas.pack import Pack
+from app.schemas.pack import Pack, PackCreate
 from app.services.animethemes import get_anime_metadata
 from app.services.chimu import search_for_beatmaps
-from app.db.models.pack import PackDB
-from app.db.models.anime import AnimeDB
 from app.db.session import SessionLocal
 from app.db.services import save_pack
+from app.utils.format import packdb_to_packschema
 
 logger = logging.getLogger(__name__)
 
@@ -34,10 +33,10 @@ class PackGenerator:
         self,
         anime_name: str,
         status: int = 1,  # 1 = ranked, 2 = loved
-        mode: Optional[int] = None  # None = all modes, 0 = standard, 1 = taiko, 2 = catch, 3 = mania
+        mode: Optional[int] = 0  # -1 = all modes, 0 = standard, 1 = taiko, 2 = catch, 3 = mania
     ) -> Pack:
         """
-        Generate a beatmap pack for a given anime name.
+        Orchestrator for generating a beatmap pack for a given anime name.
         
         Args:
             anime_name: The name of the anime (e.g., "Bakemonogatari", "Steins;Gate")
@@ -69,7 +68,7 @@ class PackGenerator:
             logger.info(f"Collected {len(beatmapset_ids)} unique beatmapset IDs")
             
             # Step 4: Create Pack object
-            pack = self._create_pack(
+            pack: PackCreate = self._create_pack(
                 anime_title=anime_metadata.name,
                 anime_slug=anime_metadata.slug,
                 anime_synopsis=anime_metadata.synopsis,
@@ -81,14 +80,16 @@ class PackGenerator:
             # save to databse after successful creation
             with SessionLocal() as session:
                try:
-                   save_pack(session, anime_metadata, pack)
+                   pack_db = save_pack(session, anime_metadata, pack)
+                   session.commit()
+                   session.refresh(pack_db)
                    logger.info(f"Pack and Anime saved to database successfully")
+                   pack_schema = packdb_to_packschema(pack_db)
                except Exception as e:
                    logger.error(f"Failed to save Pack and Anime to database: {str(e)}")
                    session.rollback()
                    raise PackGenerationError(f"Database save error: {str(e)}")
-
-            return pack
+            return pack_schema
             
         except Exception as e:
             logger.error(f"Pack generation failed for {anime_name}: {str(e)}")
@@ -169,7 +170,7 @@ class PackGenerator:
         anime_slug: str,
         anime_synopsis: Optional[str],
         beatmapset_ids: List[int],
-    ) -> Pack:
+    ) -> PackCreate:
         """
         Create a Pack object with the collected data.
         
@@ -180,19 +181,17 @@ class PackGenerator:
             anime_metadata: Full anime metadata object
         
         Returns:
-            Pack: Newly created Pack object
+            PackCreate: Newly created PackCreate object
         """
         # Generate pack name (e.g., "Bakemonogatari - Ranked Maps")
         pack_name = self._generate_pack_name(anime_title, len(beatmapset_ids))
         
-        pack = Pack(
+        pack = PackCreate(
             name=pack_name,
             anime_title=anime_title,
             anime_slug=anime_slug,
             synopsis=anime_synopsis,
-            beatmapset_ids=beatmapset_ids,
-            beatmapset_count=len(beatmapset_ids),
-            downloads=0,
+            beatmapset_ids=beatmapset_ids
         )
     
         return pack

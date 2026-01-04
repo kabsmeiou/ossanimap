@@ -1,7 +1,7 @@
 import requests
 import json
 from app.utils.format import format_anime_title_for_animethemes
-from app.db.models.anime import Anime
+from app.schemas.anime import Anime
 
 ANIMETHEMES_URL = "https://api.animethemes.moe/"
 

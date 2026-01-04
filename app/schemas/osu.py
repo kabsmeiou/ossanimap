@@ -11,7 +11,7 @@ MODE_MAP = {
 }
 
 # next: omit fields that are not necessary for basic beatmapset info
-class BeatmapSchema(BaseModel):
+class Beatmap(BaseModel):
     beatmapset_id: int = Field(..., description="beatmapset_id")
     difficulty_rating: float = Field(..., description="difficulty_rating")
     id: int = Field(..., description="id")

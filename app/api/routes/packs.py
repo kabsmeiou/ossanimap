@@ -2,8 +2,11 @@ from typing import List
 from fastapi import APIRouter, HTTPException, status
 import logging
 
+from app.db.services import list_packs as list_packs_from_db, delete_pack as delete_pack_from_db
 from app.schemas.pack import Pack, PackCreateRequest, PackResponse
 from app.services.pack_generator import pack_generator, PackGenerationError
+from app.utils.format import packdb_to_packschema
+from app.db.session import SessionLocal
 
 router = APIRouter(
     prefix="/packs",
@@ -12,9 +15,14 @@ router = APIRouter(
 
 logger = logging.getLogger(__name__)
 
-# TODO: Replace with database storage
-packs_storage: List[Pack] = []
+packs_storage = None
 
+def get_packs_storage():
+    global packs_storage
+    if packs_storage is None:
+        with SessionLocal() as session:
+            packs_storage = list_packs_from_db(session)
+    return packs_storage
 
 @router.post("/", response_model=PackResponse, status_code=status.HTTP_201_CREATED)
 async def create_pack(request: PackCreateRequest):
@@ -36,15 +44,18 @@ async def create_pack(request: PackCreateRequest):
         logger.info(f"Creating pack for anime: {request.anime_name}")
         
         # Generate the pack
+        # generate_pack_from_anime include a save to database step
         pack = pack_generator.generate_pack_from_anime(
             anime_name=request.anime_name,
             status=request.status,
             mode=request.mode
         )
         
-        # Store the pack (TODO: save to database)
-        packs_storage.append(pack)
-        
+        # refresh packs_storage
+        global packs_storage
+        packs_storage = None
+        packs_storage = get_packs_storage()
+
         return PackResponse(
             success=True,
             message=f"Pack created successfully for {request.anime_name}",
@@ -73,11 +84,13 @@ async def list_packs():
     Returns:
         List of all Pack objects
     """
-    return packs_storage
+    # format packs from database models to schemas
+    packs = [packdb_to_packschema(p) for p in get_packs_storage()]
+    return packs
 
 
 @router.get("/{pack_id}", response_model=Pack)
-async def get_pack(pack_id: int):
+async def get_pack(pack_id: int) -> Pack:
     """
     Get metadata for a specific pack by ID.
     
@@ -89,6 +102,10 @@ async def get_pack(pack_id: int):
     """
     pack = next((p for p in packs_storage if p.id == pack_id), None)
     
+    # map fields from PackDB to Pack schema (since they differ)
+    if pack:
+        pack = packdb_to_packschema(pack)
+
     if not pack:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -128,12 +145,14 @@ async def delete_pack(pack_id: int):
     global packs_storage
     
     pack = next((p for p in packs_storage if p.id == pack_id), None)
-    
+
     if not pack:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Pack with ID {pack_id} not found"
         )
     
-    packs_storage = [p for p in packs_storage if p.id != pack_id]
+    with SessionLocal() as session:
+        delete_pack_from_db(session, pack_id)
+        packs_storage = [p for p in packs_storage if p.id != pack_id]
     logger.info(f"Pack {pack_id} deleted successfully")
