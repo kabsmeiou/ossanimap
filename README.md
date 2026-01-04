@@ -31,6 +31,5 @@ The pack will be available in the routes at this point and is ready to be downlo
 
 ### Backend Logic: Download Process
 
-Upon download, an artifact is checked if it exists and download that. If not, the pack_ids will be downloaded individually using chimu.moe’s download api.
+the pack_ids will be downloaded individually using chimu.moe’s download api from the user's browser
 Due to the rate limits, downloads shall be monitored and stopped before it goes past the rate.
-To avoid redownloading the same pack from chimu, the downloads are created as an artifact and stored in the cloud. This way, every succeeding download of the same pack will instead request from the cloud.
