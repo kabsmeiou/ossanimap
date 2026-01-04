@@ -33,7 +33,7 @@ class PackGenerator:
         self,
         anime_name: str,
         status: int = 1,  # 1 = ranked, 2 = loved
-        mode: Optional[int] = 0  # -1 = all modes, 0 = standard, 1 = taiko, 2 = catch, 3 = mania
+        mode: Optional[int] = 0,  # -1 = all modes, 0 = standard, 1 = taiko, 2 = catch, 3 = mania)
     ) -> Pack:
         """
         Orchestrator for generating a beatmap pack for a given anime name.
