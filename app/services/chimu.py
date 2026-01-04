@@ -8,7 +8,7 @@ CHIMU_URL = "https://catboy.best/"
 def search_for_beatmaps(
     keyword: str, 
     status: int = 1, 
-    mode: Optional[int] = None
+    mode: Optional[int] = 0
 ) -> List[Beatmapset]:
     """
     Search for beatmapsets on chimu.moe mirror.
@@ -21,7 +21,7 @@ def search_for_beatmaps(
     Returns:
         List[Beatmapset]: List of matching beatmapsets
     """
-    with httpx.Client(base_url=CHIMU_URL) as client:
+    with httpx.Client(base_url=CHIMU_URL, timeout=5.0) as client:
         # Build query parameters
         params = {"q": keyword, "status": status}
         if mode is not None:
