@@ -1,8 +1,8 @@
-from sqlalchemy import select
+from sqlalchemy import select, func
 
 from .models.anime import AnimeDB
 from .models.pack import PackDB
-
+from app.schemas.stats import Stats
 
 def save_pack(session, anime_metadata, pack):
     """Saves the Pack and associated Anime to the database."""
@@ -66,3 +66,24 @@ def delete_pack(session, pack_id) -> bool:
         session.commit()
         return True
     return False
+
+
+def get_global_stats(session) -> Stats:
+    """Retrieves global statistics about packs."""
+    total_packs = session.query(PackDB).count()
+    total_redirects = session.query(
+        func.sum(PackDB.redirects_completed)
+    ).scalar() or 0
+    total_beatmapsets = session.query(
+        func.sum(func.json_array_length(PackDB.beatmapset_ids))
+    ).scalar() or 0
+    total_downloads = session.query(
+        func.sum(PackDB.downloads)
+    ).scalar() or 0
+
+    return Stats(
+        total_packs=total_packs,
+        total_beatmapsets=total_beatmapsets,
+        total_downloads=total_downloads,
+        total_redirects=total_redirects
+    )

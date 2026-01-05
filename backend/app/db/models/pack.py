@@ -14,7 +14,7 @@ class PackDB(Base):
     # store beatmapset IDs as JSON for DB portability (works on SQLite/Postgres)
     beatmapset_ids: Mapped[List[int]] = mapped_column(JSON, nullable=False)
     downloads: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    artifact_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    redirects_completed: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         server_default=func.now(),
     )
