@@ -73,7 +73,7 @@ async def list_packs(session: Session = Depends(get_session)):
     return packs
 
 @router.get("/{pack_id}", response_model=Pack)
-async def get_pack(pack_id: int, session: Session = Depends(get_session)) -> Pack:
+async def get_pack(pack_id: int, session: Session = Depends(get_session)):
     """
     Get metadata for a specific pack by ID.
     
