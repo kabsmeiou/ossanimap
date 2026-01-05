@@ -10,7 +10,7 @@
           <span class="anime-badge">{{ pack.anime_title }}</span>
         </div>
       </div>
-      <p class="synopsis" v-if="pack.synopsis">{{ shortSynopsis }}</p>
+      <p class="synopsis" v-if="pack.synopsis">{{ shortSynopsis.slice(0, 80) + (pack.synopsis.length > 100 ? '…' : '') }}</p>
       <div class="meta-info">
         <div class="stat">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -28,27 +28,53 @@
         </div>
       </div>
       <div class="actions">
-        <a v-if="pack.artifact_url" :href="pack.artifact_url" class="download-btn primary">
+        <button @click="handleDownloadClick" class="download-btn primary">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
             <polyline points="7 10 12 15 17 10"></polyline>
             <line x1="12" y1="15" x2="12" y2="3"></line>
           </svg>
           Download
-        </a>
-        <button v-else class="download-btn disabled">
-          No Artifact
         </button>
       </div>
     </div>
+
+    <DownloadConfirmModal 
+      :show="showModal" 
+      @close="showModal = false" 
+      @confirm="handleDownload"
+    />
   </article>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
+import DownloadConfirmModal from './DownloadConfirmModal.vue'
+
 const props = defineProps({
   pack: { type: Object, required: true }
 })
+
+const showModal = ref(false)
+
+const handleDownloadClick = () => {
+  // Check if user has opted to skip the modal for this session
+  const skipModal = sessionStorage.getItem('skipDownloadModal') === 'true'
+  
+  if (skipModal) {
+    // Proceed directly to download
+    handleDownload()
+  } else {
+    // Show confirmation modal
+    showModal.value = true
+  }
+}
+
+const handleDownload = () => {
+  showModal.value = false
+  // Download logic will be implemented here when artifact_url is available
+  console.log('Downloading pack:', props.pack.name)
+}
 
 const coverStyle = computed(() => {
   const label = (props.pack.anime_title || props.pack.name || '').toString()
@@ -93,7 +119,7 @@ const formatNumber = (num) => {
 .cover {
   position: relative;
   width: 100%;
-  height: 180px;
+  height: 100px;
   background-size: cover;
   background-position: center;
   overflow: hidden;
@@ -156,7 +182,6 @@ const formatNumber = (num) => {
   display: flex;
   gap: 16px;
   margin-top: auto;
-  padding-top: 8px;
 }
 
 .stat {

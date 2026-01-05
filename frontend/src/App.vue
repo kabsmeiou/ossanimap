@@ -42,7 +42,6 @@ const packs = ref([
     beatmapset_ids: [301,302,303,304],
     beatmapset_count: 4,
     downloads: 760,
-    artifact_url: null,
     created_at: '2022-06-05T10:00:00Z',
     updated_at: '2023-07-01T11:00:00Z'
   }
@@ -86,15 +85,6 @@ const filtered = computed(() => {
               <path d="m21 21-4.35-4.35"></path>
             </svg>
             <input v-model="query" placeholder="Search packs..." aria-label="search" />
-          </div>
-
-          <div class="sort-box">
-            <label>Sort by</label>
-            <select v-model="sortBy">
-              <option value="downloads">Downloads</option>
-              <option value="title">Title</option>
-              <option value="ranked">Recommended</option>
-            </select>
           </div>
         </div>
       </header>
