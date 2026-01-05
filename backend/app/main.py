@@ -2,7 +2,7 @@ from typing import Union
 
 from fastapi import FastAPI
 
-from app.api.routes import packs, anime
+from app.api.routes import packs, anime, stats
 
 app = FastAPI(
     title="ossanimap",
@@ -12,3 +12,4 @@ app = FastAPI(
 
 app.include_router(packs.router)
 app.include_router(anime.router)
+app.include_router(stats.router)

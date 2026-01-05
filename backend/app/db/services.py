@@ -69,21 +69,29 @@ def delete_pack(session, pack_id) -> bool:
 
 
 def get_global_stats(session) -> Stats:
-    """Retrieves global statistics about packs."""
-    total_packs = session.query(PackDB).count()
-    total_redirects = session.query(
-        func.sum(PackDB.redirects_completed)
-    ).scalar() or 0
-    total_beatmapsets = session.query(
-        func.sum(func.json_array_length(PackDB.beatmapset_ids))
-    ).scalar() or 0
-    total_downloads = session.query(
-        func.sum(PackDB.downloads)
-    ).scalar() or 0
+    total_packs = session.scalar(
+        select(func.count()).select_from(PackDB)
+    ) or 0
+
+    total_redirects = session.scalar(
+        select(func.sum(PackDB.redirects_completed))
+    ) or 0
+
+    total_beatmapsets = session.scalar(
+        select(
+            func.sum(
+                func.json_array_length(PackDB.beatmapset_ids)
+            )
+        )
+    ) or 0
+
+    total_downloads = session.scalar(
+        select(func.sum(PackDB.downloads))
+    ) or 0
 
     return Stats(
         total_packs=total_packs,
         total_beatmapsets=total_beatmapsets,
         total_downloads=total_downloads,
-        total_redirects=total_redirects
+        total_redirects=total_redirects,
     )

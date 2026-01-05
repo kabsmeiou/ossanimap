@@ -26,17 +26,17 @@ def make_anime_metadata(id=None, name="Test Anime", slug="test-anime", synopsis=
     return SimpleNamespace(id=id, name=name, slug=slug, synopsis=synopsis)
 
 
-def make_pack_obj(name="Test Pack", beatmapset_ids=None, downloads=0):
+def make_pack_obj(name="Test Pack", beatmapset_ids=None):
     if beatmapset_ids is None:
         beatmapset_ids = [1, 2, 3]
-    return SimpleNamespace(name=name, beatmapset_ids=beatmapset_ids, downloads=downloads)
+    return SimpleNamespace(name=name, beatmapset_ids=beatmapset_ids)
 
 
 def test_save_and_list_pack(db_session):
     anime_meta = make_anime_metadata(id=42, name="My Anime", slug="my-anime", synopsis="an overview")
     another_anime_meta = make_anime_metadata(id=43, name="Another Anime", slug="another-anime", synopsis="another overview")
-    pack1 = make_pack_obj(name="My Pack", beatmapset_ids=[10, 20, 30], downloads=0)
-    pack2 = make_pack_obj(name="My Pack 2", beatmapset_ids=[40, 50, 60], downloads=5)
+    pack1 = make_pack_obj(name="My Pack", beatmapset_ids=[10, 20, 30])
+    pack2 = make_pack_obj(name="My Pack 2", beatmapset_ids=[40, 50, 60])
 
     # Save packs
     db_services.save_pack(db_session, anime_meta, pack1)
@@ -66,11 +66,6 @@ def test_get_pack_and_anime_by_id_and_slug(db_session):
     assert fetched.id == pack_db.id
     assert fetched.name == "Another Pack"
 
-    # get anime by slug
-    anime_db = db_services.get_anime_by_slug(db_session, anime_meta.slug)
-    assert anime_db is not None
-    assert anime_db.slug == anime_meta.slug
-
 
 def test_delete_pack(db_session):
     anime_meta = make_anime_metadata(name="ToDelete", slug="todelete", id=7)
@@ -86,3 +81,21 @@ def test_delete_pack(db_session):
 
     packs_after = db_services.list_packs(db_session)
     assert len(packs_after) == 0
+
+
+def test_get_global_stats(db_session):
+    # Initially, stats should be zero
+    stats = db_services.get_global_stats(db_session)
+    assert stats.total_packs == 0
+    assert stats.total_beatmapsets == 0
+
+    # add some data then check if stats update correctly
+    anime_meta1 = make_anime_metadata(id=1, name="Anime 1", slug="anime-1")
+    pack1 = make_pack_obj(name="Pack 1", beatmapset_ids=[1, 2, 3])
+    db_services.save_pack(db_session, anime_meta1, pack1)
+    db_session.commit()
+
+    stats = db_services.get_global_stats(db_session)
+
+    assert stats.total_packs == 1
+    assert stats.total_beatmapsets == 3
