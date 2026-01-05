@@ -1,7 +1,6 @@
 from typing import List, Optional
 from pydantic import BaseModel, Field
 
-
 class Pack(BaseModel):
     """
     Represents a collection of osu! beatmapsets grouped by anime.
@@ -14,7 +13,6 @@ class Pack(BaseModel):
     beatmapset_ids: List[int] = Field(..., description="List of beatmapset IDs in this pack")
     beatmapset_count: int = Field(..., description="Total number of beatmapsets")
     downloads: int = Field(default=0, description="Number of times this pack has been downloaded")
-    artifact_url: Optional[str] = Field(default=None, description="URL to the packaged artifact in cloud storage")
     created_at: Optional[str] = Field(..., description="ISO 8601 timestamp of pack creation")
     updated_at: Optional[str] = Field(..., description="ISO 8601 timestamp of last update")
 
