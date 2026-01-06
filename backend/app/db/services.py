@@ -73,10 +73,6 @@ def get_global_stats(session) -> Stats:
         select(func.count()).select_from(PackDB)
     ) or 0
 
-    total_redirects = session.scalar(
-        select(func.sum(PackDB.redirects_completed))
-    ) or 0
-
     total_beatmapsets = session.scalar(
         select(
             func.sum(
@@ -93,5 +89,4 @@ def get_global_stats(session) -> Stats:
         total_packs=total_packs,
         total_beatmapsets=total_beatmapsets,
         total_downloads=total_downloads,
-        total_redirects=total_redirects,
     )

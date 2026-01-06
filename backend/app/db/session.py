@@ -5,7 +5,7 @@ from sqlalchemy.orm import sessionmaker
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL_DEV", "sqlite+pysqlite:///./dev.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+pysqlite:///./dev.db")
 
 engine = create_engine(
     DATABASE_URL,
