@@ -60,7 +60,7 @@ def search_anime_by_name(anime_name: str) -> list[AnimeSearchResult]:
     params = {
         "q": anime_name,
         "fields[search]": "anime",
-        "page[limit]": 5,
+        "page[limit]": "5",
     }
     data = _send_query(url, params=params)
     anime_list = data.get("search", {}).get("anime", [])
