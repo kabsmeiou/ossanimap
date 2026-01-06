@@ -27,7 +27,6 @@ def packdb_to_packschema(pack_db: PackDB) -> Pack:
         synopsis=pack_db.anime.synopsis,
         beatmapset_ids=pack_db.beatmapset_ids,
         downloads=pack_db.downloads,
-        artifact_url=pack_db.artifact_url,
         created_at=pack_db.created_at.isoformat() if pack_db.created_at is not None else None,
         beatmapset_count=pack_db.beatmapset_count,
         updated_at=pack_db.updated_at.isoformat() if pack_db.updated_at is not None else None,
