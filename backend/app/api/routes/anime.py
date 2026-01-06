@@ -28,6 +28,5 @@ def search_anime(anime_name: str):
         return results
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Anime search failed: {str(e)}"
-        )
+            detail=f"Anime search failed"
+        ) from e

@@ -1,5 +1,4 @@
 from sqlalchemy import select, func
-
 from .models.anime import AnimeDB
 from .models.pack import PackDB
 from app.schemas.stats import Stats
@@ -48,25 +47,17 @@ def get_pack_by_id(session, pack_id):
 def increment_pack_downloads(session, pack_id):
     """Increments the download count for a specific pack."""
     pack = get_pack_by_id(session, pack_id)
-    if pack:
-        pack.downloads += 1
-        session.commit()
-        return True
-    return False
+    pack.downloads += 1
+    session.commit()
 
-def delete_pack(session, pack_id) -> bool:
+def delete_pack(session, pack_id):
     """
     Deletes a pack by its ID.
-    
-    Returns: True if deletion was successful, False otherwise.
     """
     pack_to_delete = session.get(PackDB, pack_id)
     if pack_to_delete:
         session.delete(pack_to_delete)
         session.commit()
-        return True
-    return False
-
 
 def get_global_stats(session) -> Stats:
     total_packs = session.scalar(

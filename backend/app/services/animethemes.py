@@ -55,6 +55,8 @@ class AnimeThemesDown(AnimeThemesTryLater):
             f"Retry after {self.retry_after} seconds."
         )
 
+class AnimeThemesInvalidResponse(Exception):
+    pass
 
 def _send_query(url: str, params: dict | None = None) -> dict:
     r = client.get(url, params=params, timeout=15)
@@ -73,10 +75,8 @@ def _send_query(url: str, params: dict | None = None) -> dict:
 
     try:
         d = json.loads(raw_text)
-    except json.JSONDecodeError:
-        logger.error("JSON parse failed")
-        logger.error(f"Last 300 chars:\n{raw_text[-300:]}")
-        raise Exception("Animethemes returned truncated or invalid JSON")
+    except json.JSONDecodeError as e:
+        raise AnimeThemesInvalidResponse("Animethemes returned truncated or invalid JSON") from e
 
     return d
     
@@ -86,8 +86,6 @@ def get_anime_metadata(anime_title: str) -> Anime:
     url = f"{ANIMETHEMES_URL.rstrip('/')}/anime/{formatted_title}"
     data = _send_query(url)
     anime_metadata = data["anime"] if "anime" in data else {}
-    if anime_metadata == {}:
-        raise Exception("Anime metadata not found")
     return Anime(**anime_metadata)
 
 

@@ -17,7 +17,7 @@ router = APIRouter(
 logger = logging.getLogger(__name__)
 
 @router.post("/", response_model=PackResponse, status_code=status.HTTP_201_CREATED)
-async def create_pack(request: PackCreateRequest):
+async def create_pack(request: PackCreateRequest, session: Session = Depends(get_session)):
     """
     Create a new beatmap pack from an anime name.
     
@@ -33,28 +33,23 @@ async def create_pack(request: PackCreateRequest):
         PackResponse with the created pack
     """
     try:
-        logger.info(f"Creating pack for anime: {request.anime_name}")
-        
         pack = pack_generator.generate_pack_from_anime(
             anime_name=request.anime_name,
             status=request.status,
-            mode=request.mode
-        ) 
-        
+            mode=request.mode,
+            session=session
+        )
         return PackResponse(
             success=True,
             message=f"Pack created successfully for {request.anime_name}",
             pack=pack
         )
-    
     except PackGenerationError as e:
-        logger.error(f"Pack generation failed: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e)
         )
     except Exception as e:
-        logger.error(f"Unexpected error: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create pack: {str(e)}"
@@ -104,12 +99,7 @@ async def increment_pack_downloads(pack_id: int):
     Args:
         pack_id: The unique pack identifier
     """
-    success = increment_pack_downloads(session=get_session(), pack_id=pack_id)
-    if not success:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Pack with ID {pack_id} not found"
-        )
+    increment_pack_downloads(session=get_session(), pack_id=pack_id)
     return {"message": f"Download count incremented for pack ID {pack_id}"}
 
 @router.delete("/{pack_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -130,7 +120,7 @@ async def delete_pack(pack_id: int, session: Session = Depends(get_session)):
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Pack with ID {pack_id} not found"
         )
-
+    
     delete_pack_from_db(session, pack_id)
     packs_storage = [p for p in packs_storage if p.id != pack_id]
     logger.info(f"Pack {pack_id} deleted successfully")
