@@ -1,6 +1,9 @@
 from typing import List, Optional
 import httpx
 from app.schemas.osu import Beatmapset
+import logging
+
+logger = logging.getLogger(__name__)
 
 CHIMU_URL = "https://catboy.best/"
 
@@ -28,6 +31,7 @@ def search_for_beatmaps(
             params["mode"] = mode
         
         response = client.get("api/v2/search", params=params)
+        logger.debug(f"Chimu response (status={response.status_code}, len={len(response.content)})")
         response.raise_for_status()
         data = response.json()
     
