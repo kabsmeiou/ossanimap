@@ -21,6 +21,8 @@ const requestingPackSlug = ref(null) // Track which suggestion is being processe
 // Rate limit state
 const rateLimitInfo = ref(null)
 const showRateLimitWarning = ref(false)
+const rateLimitError = ref(false) // Track if rate limit fetch failed
+
 
 // Fetch rate limits
 const fetchRateLimits = async () => {
@@ -31,6 +33,7 @@ const fetchRateLimits = async () => {
     
     const data = await response.json()
     rateLimitInfo.value = data
+    rateLimitError.value = false // Reset error state on success
     
     // Show warning if downloads are getting low
     const remaining = data.daily.remaining.downloads
@@ -40,11 +43,18 @@ const fetchRateLimits = async () => {
     showRateLimitWarning.value = percentRemaining <= 20 || remaining === 0
   } catch (err) {
     console.error('Failed to fetch rate limits:', err)
+    rateLimitError.value = true // Set error state
+    rateLimitInfo.value = null
+    showRateLimitWarning.value = false
   }
 }
 
 // Handle Enter key press to trigger search
 const handleSearchKeyPress = async (event) => {
+  if (rateLimitError.value) {
+    return; // Prevent search when service is unreachable
+  }
+  
   if (event.key === 'Enter' && query.value.trim().length >= 3) {
     await fetchSearchSuggestions(query.value)
   }
@@ -98,6 +108,7 @@ const handleClickOutside = (event) => {
 }
 
 onMounted(() => {
+  fetchRateLimits()
   fetchPacks()
   document.addEventListener('click', handleClickOutside)
 })
@@ -120,6 +131,10 @@ const fetchPacks = async () => {
     packs.value = data
   } catch (err) {
     error.value = err.message
+    // get response code
+    if (err.response) {
+      console.log('Response code:', err.response.status)
+    }
     console.error('Failed to fetch packs:', err)
     // Fallback to dummy data on error
     packs.value = [
@@ -165,12 +180,6 @@ const fetchPacks = async () => {
   }
 }
 
-// Fetch packs on mount
-onMounted(() => {
-  fetchPacks()
-  fetchRateLimits()
-})
-
 const filtered = computed(() => {
   const q = query.value.trim().toLowerCase()
   let list = packs.value.filter(p => {
@@ -204,7 +213,7 @@ const filtered = computed(() => {
 
         <div class="controls">
           <div class="search-container" ref="searchInput">
-            <div class="search-box">
+            <div class="search-box" :class="{ 'disabled': rateLimitError }">
               <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="11" cy="11" r="8"></circle>
                 <path d="m21 21-4.35-4.35"></path>
@@ -213,7 +222,8 @@ const filtered = computed(() => {
                 v-model="query" 
                 @keypress="handleSearchKeyPress"
                 placeholder="Search packs..." 
-                aria-label="search" 
+                aria-label="search"
+                :disabled="rateLimitError"
               />
             </div>
 
@@ -267,6 +277,23 @@ const filtered = computed(() => {
         </div>
       </header>
 
+      <!-- chimu.moe Unreachable Warning Banner -->
+      <div v-if="rateLimitError" class="rate-limit-banner error-banner">
+        <div class="banner-content">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+          <div class="banner-text">
+            <strong>Service Unavailable:</strong>
+            <span>
+              chimu.moe is currently unreachable. Downloads and search requests are temporarily disabled.
+            </span>
+          </div>
+        </div>
+      </div>
+
       <!-- Rate Limit Warning Banner -->
       <div v-if="showRateLimitWarning && rateLimitInfo" class="rate-limit-banner">
         <div class="banner-content">
@@ -317,7 +344,12 @@ const filtered = computed(() => {
 
         <!-- Packs list -->
         <section v-else class="cards">
-          <BeatmapCard v-for="pack in filtered" :key="pack.id" :pack="pack" />
+          <BeatmapCard 
+            v-for="pack in filtered" 
+            :key="pack.id" 
+            :pack="pack" 
+            :disabled="rateLimitError" 
+          />
         </section>
       </main>
     </div>
@@ -405,9 +437,24 @@ const filtered = computed(() => {
   transition: all 0.2s ease;
 }
 
+.search-box.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: #f7fafc;
+}
+
+.search-box.disabled input {
+  cursor: not-allowed;
+}
+
 .search-box:focus-within {
   box-shadow: 0 4px 16px rgba(102, 126, 234, 0.2), 0 2px 4px rgba(0, 0, 0, 0.06);
   transform: translateY(-1px);
+}
+
+.search-box.disabled:focus-within {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  transform: none;
 }
 
 .search-icon {
@@ -612,6 +659,23 @@ const filtered = computed(() => {
   padding: 16px 20px;
   margin-bottom: 24px;
   box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);
+}
+
+.error-banner {
+  background: linear-gradient(135deg, #fecaca 0%, #f87171 100%);
+  border: 1px solid #dc2626;
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+}
+
+.error-banner .banner-content svg {
+  color: #7f1d1d;
+}
+
+.error-banner .banner-text {
+  color: #7f1d1d;
 }
 
 .banner-content {
@@ -833,6 +897,15 @@ main {
     align-items: flex-start;
     gap: 12px;
   }
+
+  .rate-limit-banner,
+  .error-banner {
+    padding: 12px 16px;
+  }
+
+  .banner-text {
+    font-size: 13px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -860,6 +933,16 @@ main {
   .search-indicator kbd {
     padding: 2px 5px;
     font-size: 9px;
+  }
+
+  .rate-limit-banner,
+  .error-banner {
+    padding: 10px 14px;
+    margin-bottom: 16px;
+  }
+
+  .banner-text {
+    font-size: 12px;
   }
 }
 </style>
