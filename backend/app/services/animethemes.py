@@ -11,7 +11,10 @@ logger = logging.getLogger("uvicorn.error")
 def get_anime_metadata(anime_title: str) -> Anime:
     formatted_title = format_anime_title_for_animethemes(anime_title)
     try:
-        response = requests.get(f"{ANIMETHEMES_URL}anime/{formatted_title}")
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/118.0.5993.90 Safari/537.36"
+        }
+        response = requests.get(f"{ANIMETHEMES_URL}anime/{formatted_title}", headers=headers)
         response.raise_for_status()
     except requests.RequestException as e:
         raise Exception(f"Error connecting to animethemes API: {str(e)}")
@@ -23,8 +26,11 @@ def get_anime_metadata(anime_title: str) -> Anime:
 
 def search_anime_by_name(anime_name: str) -> list[AnimeSearchResult]:
     try:
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/118.0.5993.90 Safari/537.36"
+        }
         params = {"q": anime_name, "fields[search]": "anime", "page[limit]": 5}
-        response = requests.get(f"{ANIMETHEMES_URL}search", params=params)
+        response = requests.get(f"{ANIMETHEMES_URL}search", params=params, headers=headers)
         response.raise_for_status()
     except requests.RequestException as e:
         raise Exception(f"Error connecting to animethemes API: {str(e)}")
