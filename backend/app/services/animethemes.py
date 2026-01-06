@@ -8,26 +8,16 @@ ANIMETHEMES_URL = "https://api.animethemes.moe/"
 
 logger = logging.getLogger(__name__)
 
-# impersonate with primp
 client = primp.Client(
     impersonate="safari_17.2.1",
-    impersonate_os="macos"
+    impersonate_os="macos",
+    timeout=15,
 )
-# These headers are what modern Chrome sends to prove it's a real browser
-headers = {
-    "Authority": "api.animethemes.moe",
+
+client.headers_update({
     "Accept": "application/json",
-    "Accept-Language": "en-US,en;q=0.9",
     "Referer": "https://animethemes.moe/",
-    "Sec-Ch-Ua": '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
-    "Sec-Ch-Ua-Mobile": "?0",
-    "Sec-Ch-Ua-Platform": '"Windows"',
-    "Sec-Fetch-Dest": "empty",
-    "Sec-Fetch-Mode": "cors",
-    "Sec-Fetch-Site": "same-site",
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
-}
-client.headers_update(headers)
+})
 
 def _send_query(url: str, params: dict | None = None) -> dict:
     try:
