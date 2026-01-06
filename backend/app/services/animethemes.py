@@ -22,7 +22,6 @@ def get_anime_metadata(anime_title: str) -> Anime:
     formatted_title = format_anime_title_for_animethemes(anime_title)
     try:
         response = client.get(f"{ANIMETHEMES_URL}anime/{formatted_title}")
-        response.raise_for_status()
     except Exception as e:
         raise Exception(f"Error connecting to animethemes API: {str(e)}")
     data = response.json()
@@ -35,7 +34,6 @@ def search_anime_by_name(anime_name: str) -> list[AnimeSearchResult]:
     try:
         params = {"q": anime_name, "fields[search]": "anime", "page[limit]": "5"}
         response = client.get(f"{ANIMETHEMES_URL}search", params=params)
-        response.raise_for_status()
     except Exception as e:
         raise Exception(f"Error connecting to animethemes API: {str(e)}")
     # data contains {search: {anime: [...]. animethemes: [...]} }
