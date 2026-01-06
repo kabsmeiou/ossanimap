@@ -31,7 +31,7 @@
           @click="handleDownloadClick" 
           class="download-btn primary"
           :class="{ 'downloading': isDownloading }"
-          :disabled="isDownloading"
+          :disabled="isDownloading || disabled"
         >
           <div v-if="isDownloading" class="download-progress">
             <div class="progress-content">
@@ -71,7 +71,8 @@ import JSZip from 'jszip';
 import { saveAs } from 'file-saver'; // Optional helper, or use <a> tag
 
 const props = defineProps({
-  pack: { type: Object, required: true }
+  pack: { type: Object, required: true },
+  disabled: { type: Boolean, default: false }
 })
 
 const showModal = ref(false)
@@ -120,6 +121,11 @@ const checkRateLimits = async () => {
 }
 
 const handleDownloadClick = async () => {
+  // Don't allow download if service is unreachable
+  if (props.disabled) {
+    return
+  }
+  
   // Check rate limits first
   const rateLimitCheck = await checkRateLimits()
   
