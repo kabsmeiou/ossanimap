@@ -19,21 +19,57 @@ client.headers_update({
     "Referer": "https://animethemes.moe/",
 })
 
-def _send_query(url: str, params: dict | None = None) -> dict:
-    try:
-        r = client.get(url, params=params, timeout=15)
-    except Exception as e:
-        raise Exception(f"Connection failed: {str(e)}")
+class AnimeThemesTryLater(Exception):
+    """
+    Base exception indicating the caller should retry after `retry_after` seconds.
+    """
 
-    raw_text = r.text  # 🔑 force full read ONCE
-    logger.debug(
-        f"AnimeThemes response "
-        f"(status={r.status_code}, len={len(raw_text)})"
-    )
+    def __init__(self, retry_after: int = 30):
+        self.retry_after = retry_after
+        super().__init__(self.__str__())
+
+    def __str__(self) -> str:
+        return f"Try again in {self.retry_after} seconds."
+
+    
+class AnimeThemesThrottleError(AnimeThemesTryLater):
+    def __init__(self, retry_after: int = 30):
+        super().__init__(retry_after)
+
+    def __str__(self) -> str:
+        return (
+            "AnimeThemes API rate limit exceeded. "
+            f"Retry after {self.retry_after} seconds."
+        )
+
+class AnimeThemesDown(AnimeThemesTryLater):
+    """animethemes.moe is unavailable or blocking requests."""
+
+    def __init__(self, status_code: int, retry_after: int = 30):
+        self.status_code = status_code
+        super().__init__(retry_after)
+
+    def __str__(self) -> str:
+        return (
+            f"animethemes.moe returned HTTP {self.status_code}. "
+            f"Retry after {self.retry_after} seconds."
+        )
+
+
+def _send_query(url: str, params: dict | None = None) -> dict:
+    r = client.get(url, params=params, timeout=15)
+
+    if r.status_code == 429:
+        retry_after = int(r.headers.get("Retry-After", 30))
+        raise AnimeThemesThrottleError(retry_after)
+
+    if r.status_code >= 500:
+        raise AnimeThemesDown(r.status_code)
 
     if r.status_code != 200:
-        logger.error(f"Non-200 response: {raw_text[:300]}")
-        raise Exception(f"Animethemes API error {r.status_code}")
+        raise AnimeThemesDown(r.status_code, retry_after=60)
+    
+    raw_text = r.text  # 🔑 force full read ONCE
 
     try:
         d = json.loads(raw_text)

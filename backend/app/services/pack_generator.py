@@ -1,5 +1,4 @@
 from typing import List, Optional
-from datetime import datetime
 import logging
 
 from app.schemas.anime import Anime
