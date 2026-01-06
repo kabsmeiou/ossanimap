@@ -13,7 +13,7 @@ router = APIRouter(
     tags=["anime"]
 )
 
-@router.get("/search/", response_model=List[AnimeSearchResult])
+@router.get("/search", response_model=List[AnimeSearchResult])
 def search_anime(anime_name: str):
     """
     Search for anime by name using the AnimeThemes API.
