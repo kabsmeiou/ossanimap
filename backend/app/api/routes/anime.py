@@ -7,13 +7,10 @@ from app.services.animethemes import search_anime_by_name
 
 logger = logging.getLogger(__name__)
 
-
 router = APIRouter(
     prefix="/anime",
     tags=["anime"]
 )
-
-# TODO: caching for external api calls
 
 @router.get("/search", response_model=List[AnimeSearchResult])
 def search_anime(anime_name: str):
@@ -30,7 +27,6 @@ def search_anime(anime_name: str):
         results = search_anime_by_name(anime_name)
         return results
     except Exception as e:
-        logger.error(f"Anime search failed for '{anime_name}': {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Anime search failed: {str(e)}"

@@ -3,6 +3,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import packs, anime, stats
 
+# TODO. fix logs
+# TODO: caching for external api calls
+
 app = FastAPI(
     title="ossanimap",
     description="osu! beatmapset packager that aggregates ranked/loved osu! beatmaps into downloadable packages grouped by anime name",
