@@ -29,9 +29,10 @@ def search_for_beatmaps(
         params = {"q": keyword, "status": status}
         if mode is not None:
             params["mode"] = mode
-        
-        response = client.get("api/v2/search", params=params)
-        logger.debug(f"Chimu response (status={response.status_code}, len={len(response.content)})")
+        try:
+            response = client.get("api/v2/search", params=params)
+        except httpx.RequestError as e:
+            raise ("Chimu.moe search request failed") from e
         response.raise_for_status()
         data = response.json()
     

@@ -17,11 +17,5 @@ def read_global_stats(db=Depends(get_session)):
     Returns:
         Stats: An object containing various global statistics.
     """
-    try:
-        stats = get_global_stats(db)
-        return stats
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve global stats: {str(e)}"
-        )
+    stats = get_global_stats(db)
+    return stats

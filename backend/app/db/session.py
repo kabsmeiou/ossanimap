@@ -1,7 +1,8 @@
 import os
 from dotenv import load_dotenv
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.exc import SQLAlchemyError
 
 load_dotenv()
 
@@ -21,5 +22,8 @@ def get_session():
     session = SessionLocal()
     try:
         yield session
+    except SQLAlchemyError as e:
+        session.rollback()
+        raise str(e.__dict__['orig'])
     finally:
         session.close()

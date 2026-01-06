@@ -1,10 +1,12 @@
 from typing import List, Optional
 import logging
+from sqlalchemy.exc import SQLAlchemyError
+from httpx import RequestError
 
 from app.schemas.anime import Anime
 from app.schemas.osu import Beatmapset
 from app.schemas.pack import Pack, PackCreate
-from app.services.animethemes import get_anime_metadata
+from app.services.animethemes import get_anime_metadata, AnimeThemesInvalidResponse, AnimeThemesThrottleError, AnimeThemesDown
 from app.services.chimu import search_for_beatmaps
 from app.db.session import SessionLocal
 from app.db.services import save_pack
@@ -31,6 +33,7 @@ class PackGenerator:
     """
     def generate_pack_from_anime(
         self,
+        session,
         anime_name: str,
         status: int = 1,
         mode: int = -1,
@@ -51,21 +54,15 @@ class PackGenerator:
         """
         try:
             # Step 1: Fetch anime metadata
-            logger.info(f"Fetching anime metadata for: {anime_name}")
             anime_metadata = self._fetch_anime_metadata(anime_name)
-            logger.info(f"Found anime: {anime_metadata.name} (ID: {anime_metadata.id})")
             
             # Step 2: Search for beatmapsets
-            logger.info(f"Searching for beatmapsets with title: {anime_metadata.name}")
             beatmapsets = self._search_beatmapsets(anime_metadata.name, status, mode)
-            logger.info(f"Found {len(beatmapsets)} beatmapsets")
-            
             if not beatmapsets:
                 raise PackGenerationError(f"No beatmapsets found for anime: {anime_name}")
             
             # Step 3: Extract beatmapset IDs
             beatmapset_ids = self._extract_beatmapset_ids(beatmapsets)
-            logger.info(f"Collected {len(beatmapset_ids)} unique beatmapset IDs")
             
             # Step 4: Create Pack object
             pack: PackCreate = self._create_pack(
@@ -75,26 +72,20 @@ class PackGenerator:
                 beatmapset_ids=beatmapset_ids,
                 mode=mode
             )
-
-            logger.info(f"Pack created successfully: {pack.name}")
             
-            # save to databse after successful creation
-            with SessionLocal() as session:
-               try:
-                   pack_db = save_pack(session, anime_metadata, pack)
-                   session.commit()
-                   session.refresh(pack_db)
-                   logger.info(f"Pack and Anime saved to database successfully")
-                   pack_schema = packdb_to_packschema(pack_db)
-               except Exception as e:
-                   logger.error(f"Failed to save Pack and Anime to database: {str(e)}")
-                   session.rollback()
-                   raise PackGenerationError(f"Database save error: {str(e)}")
-            return pack_schema
-            
+            # save to databse after successful creation then convert to schema
+            try:
+                p = save_pack(session, anime_metadata, pack)
+                session.commit()
+                # calls refresh on the pack_db object
+                # this is to reload and get database generated fields and etc.
+                session.refresh(p)
+            except SQLAlchemyError as e:
+                raise PackGenerationError(f"Database save error") from e
+            p_schema = packdb_to_packschema(p)
+            return p_schema
         except Exception as e:
-            logger.error(f"Pack generation failed for {anime_name}: {str(e)}")
-            raise PackGenerationError(f"Failed to generate pack for {anime_name}: {str(e)}")
+            raise PackGenerationError(f"Failed to generate pack for {anime_name}") from e
     
     def _fetch_anime_metadata(self, anime_name: str) -> Anime:
         """
@@ -111,8 +102,8 @@ class PackGenerator:
         """
         try:
             return get_anime_metadata(anime_name)
-        except Exception as e:
-            raise PackGenerationError(f"Failed to fetch anime metadata: {str(e)}")
+        except (AnimeThemesInvalidResponse, AnimeThemesThrottleError, AnimeThemesDown) as e:
+            raise PackGenerationError(f"Failed to fetch anime metadata") from e
     
     def _search_beatmapsets(
         self,
@@ -141,11 +132,9 @@ class PackGenerator:
             if mode is not None:
                 beatmapsets = search_for_beatmaps(search_query, status=status, mode=mode)
             else:
-                # Search all modes if mode is None
                 beatmapsets = search_for_beatmaps(search_query, status=status)
-            
             return beatmapsets
-        except Exception as e:
+        except RequestError as e: # httpx.RequestError
             raise PackGenerationError(f"Failed to search beatmapsets: {str(e)}")
     
     def _extract_beatmapset_ids(self, beatmapsets: List[Beatmapset]) -> List[int]:
@@ -243,6 +232,4 @@ class PackGenerator:
         logger.info(f"Successfully generated {len(packs)} out of {len(anime_names)} packs")
         return packs
 
-
-# Singleton instance for convenience
 pack_generator = PackGenerator()
