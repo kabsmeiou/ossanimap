@@ -26,6 +26,7 @@ const showRateLimitWarning = ref(false)
 const fetchRateLimits = async () => {
   try {
     const response = await fetch('https://catboy.best/api/ratelimits')
+    console.log('Rate limits response:', response)
     if (!response.ok) throw new Error('Failed to fetch rate limits')
     
     const data = await response.json()

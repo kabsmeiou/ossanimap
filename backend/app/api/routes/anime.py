@@ -13,6 +13,8 @@ router = APIRouter(
     tags=["anime"]
 )
 
+# TODO: caching for external api calls
+
 @router.get("/search", response_model=List[AnimeSearchResult])
 def search_anime(anime_name: str):
     """
