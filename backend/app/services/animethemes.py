@@ -6,7 +6,7 @@ from app.schemas.anime import Anime, AnimeSearchResult
 
 ANIMETHEMES_URL = "https://api.animethemes.moe/"
 
-logger = logging.getLogger("uvicorn.error")
+logger = logging.getLogger(__name__)
 
 # impersonate with primp
 client = primp.Client(
@@ -42,22 +42,36 @@ def get_anime_metadata(anime_title: str) -> Anime:
     return Anime(**anime_metadata)
 
 def search_anime_by_name(anime_name: str) -> list[AnimeSearchResult]:
+    # Ensure URL is clean: https://api.animethemes.moe/search
+    url = f"{ANIMETHEMES_URL.rstrip('/')}/search"
+    
+    params = {
+        "q": anime_name, 
+        "fields[search]": "anime", 
+        "page[limit]": "5"
+    }
+    
     try:
-        params = {"q": anime_name, "fields[search]": "anime", "page[limit]": "5"}
-        response = client.get(f"{ANIMETHEMES_URL}search", params=params)
+        response = client.get(url, params=params)
     except Exception as e:
-        raise Exception(f"Error connecting to animethemes API: {str(e)}")
+        raise Exception(f"Connection failed: {str(e)}")
+
+    # LOG THE RAW DATA IF IT'S NOT JSON
+    content_type = response.headers.get("Content-Type", "")
     
-    logger.debug(f"AnimeThemes search response status: {response.status_code}")
-    
+    if "application/json" not in content_type:
+        logger.error(f"Unexpected Content-Type: {content_type}")
+        logger.error(f"Raw Body: {response.text[:500]}") # This will show the HTML error
+        raise Exception(f"Expected JSON but got {content_type}. Check logs for HTML body.")
+
     try:
         data = response.json()
-    except json.JSONDecodeError as e:
-        logger.error(f"Failed to decode JSON response for search query '{anime_name}'")
-        logger.error(f"Response status: {response.status_code}")
-        logger.error(f"Response headers: {dict(response.headers)}")
-        logger.error(f"Response text (first 500 chars): {response.text[:500] if hasattr(response, 'text') else 'No text available'}")
-        raise Exception(f"Invalid JSON response from animethemes API: {str(e)}")
+    except Exception as e:
+        logger.error(f"Failed to parse JSON. Text: {response.text[:200]}")
+        raise Exception(f"JSON Parsing Error: {str(e)}")
+
+    # Safely navigate the dictionary
+    search_data = data.get("search", {})
+    anime_list = search_data.get("anime", [])
     
-    anime_list = data["search"]["anime"] if "search" in data and "anime" in data["search"] else []
     return [AnimeSearchResult(**anime) for anime in anime_list]
