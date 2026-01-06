@@ -32,10 +32,3 @@ def search_for_beatmaps(
         data = response.json()
     
     return [Beatmapset(**item) for item in data]
-
-
-def download_beatmapset(beatmapset_id: int) -> bytes:
-    with httpx.Client(base_url=CHIMU_URL) as client:
-        response = client.get(f"d/{beatmapset_id}")
-        response.raise_for_status()
-    return response.content

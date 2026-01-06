@@ -23,7 +23,7 @@ def get_anime_metadata(anime_title: str) -> Anime:
 
 def search_anime_by_name(anime_name: str) -> list[AnimeSearchResult]:
     try:
-        params = {"q": anime_name, "fields[search]": "anime"}
+        params = {"q": anime_name, "fields[search]": "anime", "page[limit]": 5}
         response = requests.get(f"{ANIMETHEMES_URL}search", params=params)
         response.raise_for_status()
     except requests.RequestException as e:
