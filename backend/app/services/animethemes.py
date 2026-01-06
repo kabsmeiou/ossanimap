@@ -13,7 +13,7 @@ client = primp.Client(
     impersonate_os="windows"
 )
 headers = {
-    "Referer": "https://animethemes.moe/",
+    "Referer": "https://api-docs.animethemes.moe/",
 }
 client.headers_update(headers)
     
@@ -24,6 +24,7 @@ def get_anime_metadata(anime_title: str) -> Anime:
         response = client.get(f"{ANIMETHEMES_URL}anime/{formatted_title}")
     except Exception as e:
         raise Exception(f"Error connecting to animethemes API: {str(e)}")
+    logger.debug(f"AnimeThemes get_anime_metadata response: {response}")
     data = response.json()
     anime_metadata = data["anime"] if "anime" in data else {}
     if anime_metadata == {}:
@@ -37,6 +38,7 @@ def search_anime_by_name(anime_name: str) -> list[AnimeSearchResult]:
     except Exception as e:
         raise Exception(f"Error connecting to animethemes API: {str(e)}")
     # data contains {search: {anime: [...]. animethemes: [...]} }
+    logger.debug(f"AnimeThemes search response: {response}")
     data = response.json()
     anime_list = data["search"]["anime"] if "search" in data and "anime" in data["search"] else []
     return [AnimeSearchResult(**anime) for anime in anime_list]
