@@ -25,13 +25,13 @@ const rateLimitError = ref(false) // Track if rate limit fetch failed
 
 
 // Fetch rate limits
-const fetchRateLimits = async () => {
+const fetchRateLimits = () => {
   try {
-    const response = await fetch('https://catboy.best/api/ratelimits')
+    const response = fetch('https://catboy.best/api/ratelimits')
     console.log('Rate limits response:', response)
     if (!response.ok) throw new Error('Failed to fetch rate limits')
     
-    const data = await response.json()
+    const data = response.json()
     rateLimitInfo.value = data
     rateLimitError.value = false // Reset error state on success
     
@@ -88,7 +88,9 @@ const handleSuggestionClick = async (suggestion) => {
   }
 
   try {
-    await api.packs.create(data)
+    await api.packs.create(data).then(() => {
+      fetchPacks()
+    })
     alert(`Request for pack "${suggestion.name}" has been submitted!`)
     showSuggestions.value = false
     query.value = ''
