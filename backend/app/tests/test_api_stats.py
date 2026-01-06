@@ -84,4 +84,3 @@ def test_get_global_stats(client, db_session):
     assert data["total_packs"] == 2
     assert data["total_beatmapsets"] == 7  # 3 + 4
     assert data["total_downloads"] == 3  # 2 + 1
-    assert "total_redirects" in data

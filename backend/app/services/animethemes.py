@@ -1,22 +1,29 @@
-import requests
+import primp
 import logging
 from app.utils.format import format_anime_title_for_animethemes
-from app.schemas.anime import AnimeSearchResult, Anime
+from app.schemas.anime import Anime, AnimeSearchResult
 
 ANIMETHEMES_URL = "https://api.animethemes.moe/"
 
 logger = logging.getLogger("uvicorn.error")
 
+# impersonate with primp
+client = primp.Client(
+    impersonate="chrome_131",
+    impersonate_os="windows"
+)
+headers = {
+    "Referer": "https://animethemes.moe/",
+}
+client.headers_update(headers)
+    
 # animethemes api expects anime titles to be in lowercase with underscores instead of spaces
 def get_anime_metadata(anime_title: str) -> Anime:
     formatted_title = format_anime_title_for_animethemes(anime_title)
     try:
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/118.0.5993.90 Safari/537.36"
-        }
-        response = requests.get(f"{ANIMETHEMES_URL}anime/{formatted_title}", headers=headers)
+        response = client.get(f"{ANIMETHEMES_URL}anime/{formatted_title}")
         response.raise_for_status()
-    except requests.RequestException as e:
+    except Exception as e:
         raise Exception(f"Error connecting to animethemes API: {str(e)}")
     data = response.json()
     anime_metadata = data["anime"] if "anime" in data else {}
@@ -26,13 +33,10 @@ def get_anime_metadata(anime_title: str) -> Anime:
 
 def search_anime_by_name(anime_name: str) -> list[AnimeSearchResult]:
     try:
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/118.0.5993.90 Safari/537.36"
-        }
         params = {"q": anime_name, "fields[search]": "anime", "page[limit]": 5}
-        response = requests.get(f"{ANIMETHEMES_URL}search", params=params, headers=headers)
+        response = client.get(f"{ANIMETHEMES_URL}search", params=params)
         response.raise_for_status()
-    except requests.RequestException as e:
+    except Exception as e:
         raise Exception(f"Error connecting to animethemes API: {str(e)}")
     # data contains {search: {anime: [...]. animethemes: [...]} }
     data = response.json()
