@@ -1,3 +1,4 @@
+import time
 import primp
 import logging
 import json
@@ -6,7 +7,7 @@ from app.schemas.anime import Anime, AnimeSearchResult
 
 ANIMETHEMES_URL = "https://api.animethemes.moe/"
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("uvicorn.error")
 
 class AnimeThemesTryLater(Exception):
     """
@@ -48,12 +49,16 @@ class AnimeThemesInvalidResponse(Exception):
     pass
 
 async def _send_query(url: str, params: dict | None = None) -> dict:
+    # check time it takes
     async with primp.AsyncClient(
         impersonate="safari_17.2.1",
         impersonate_os="macos",
         timeout=15,
     ) as client:
+        before_request_time = time.perf_counter()
         r = await client.get(url, params=params, timeout=15)
+        elapsed = time.perf_counter() - before_request_time
+        logger.info("AnimeThemes API request to %s took %.2f seconds", url, elapsed)
 
     if r.status_code == 429:
         retry_after = int(r.headers.get("Retry-After", 30))
@@ -84,12 +89,12 @@ async def get_anime_metadata(anime_title: str) -> Anime:
 
 
 async def search_anime_by_name(anime_name: str) -> list[AnimeSearchResult]:
-    url = f"{ANIMETHEMES_URL.rstrip('/')}/search"
+    url = f"{ANIMETHEMES_URL.rstrip('/')}/anime"
     params = {
         "q": anime_name,
-        "fields[search]": "anime",
-        "page[limit]": "5",
+        "page[size]": "5",
     }
+    logger.info("url: %s, params: %s", url, params)
     data = await _send_query(url, params=params)
-    anime_list = data.get("search", {}).get("anime", [])
+    anime_list = data.get("anime", [])
     return [AnimeSearchResult(**anime) for anime in anime_list]

@@ -28,5 +28,6 @@ async def search_anime(anime_name: str):
         return results
     except Exception as e:
         raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Anime search failed"
         ) from e
