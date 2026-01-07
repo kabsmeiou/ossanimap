@@ -35,4 +35,4 @@ def packdb_to_packschema(pack_db: PackDB) -> Pack:
         )
         return pack
     except ValidationError as e:
-        raise f"Failed to convert PackDB to Pack schema: {str(e)}"
+        raise ValueError(f"Failed to convert PackDB to Pack schema") from e

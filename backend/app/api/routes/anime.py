@@ -13,7 +13,7 @@ router = APIRouter(
 )
 
 @router.get("/search", response_model=List[AnimeSearchResult])
-def search_anime(anime_name: str):
+async def search_anime(anime_name: str):
     """
     Search for anime by name using the AnimeThemes API.
     
@@ -24,7 +24,7 @@ def search_anime(anime_name: str):
         List of matching AnimeSearchResult objects
     """    
     try:
-        results = search_anime_by_name(anime_name)
+        results = await search_anime_by_name(anime_name)
         return results
     except Exception as e:
         raise HTTPException(

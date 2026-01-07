@@ -1,7 +1,7 @@
 from typing import List
 from fastapi import APIRouter, HTTPException, status, Depends
 import logging
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.services import list_packs as list_packs_from_db, delete_pack as delete_pack_from_db, increment_pack_downloads, get_pack_by_id
 from app.schemas.pack import Pack, PackCreateRequest, PackResponse
@@ -17,7 +17,7 @@ router = APIRouter(
 logger = logging.getLogger(__name__)
 
 @router.post("/", response_model=PackResponse, status_code=status.HTTP_201_CREATED)
-async def create_pack(request: PackCreateRequest, session: Session = Depends(get_session)):
+async def create_pack(request: PackCreateRequest, session: AsyncSession = Depends(get_session)):
     """
     Create a new beatmap pack from an anime name.
     
@@ -33,11 +33,11 @@ async def create_pack(request: PackCreateRequest, session: Session = Depends(get
         PackResponse with the created pack
     """
     try:
-        pack = pack_generator.generate_pack_from_anime(
+        pack = await pack_generator.generate_pack_from_anime(
+            session=session,
             anime_name=request.anime_name,
             status=request.status,
-            mode=request.mode,
-            session=session
+            mode=request.mode
         )
         return PackResponse(
             success=True,
@@ -56,19 +56,19 @@ async def create_pack(request: PackCreateRequest, session: Session = Depends(get
         )
 
 @router.get("/", response_model=List[Pack])
-async def list_packs(session: Session = Depends(get_session)):
+async def list_packs(session: AsyncSession = Depends(get_session)):
     """
     List all available beatmap packs.
     
     Returns:
         List of all Pack objects
     """
-    packs_db = list_packs_from_db(session=session)
+    packs_db = await list_packs_from_db(session=session)
     packs = [packdb_to_packschema(p) for p in packs_db]
     return packs
 
 @router.get("/{pack_id}", response_model=Pack)
-async def get_pack(pack_id: int, session: Session = Depends(get_session)):
+async def get_pack(pack_id: int, session: AsyncSession = Depends(get_session)):
     """
     Get metadata for a specific pack by ID.
     
@@ -78,7 +78,7 @@ async def get_pack(pack_id: int, session: Session = Depends(get_session)):
     Returns:
         Pack object with metadata
     """
-    pack = get_pack_by_id(session, pack_id)
+    pack = await get_pack_by_id(session, pack_id)
     if pack:
         pack = packdb_to_packschema(pack)
 
@@ -92,18 +92,18 @@ async def get_pack(pack_id: int, session: Session = Depends(get_session)):
 
 # increment downloads count endpoint
 @router.get("/{pack_id}/increment-downloads", status_code=status.HTTP_200_OK)
-async def increment_pack_downloads(pack_id: int):
+async def increment_downloads(pack_id: int, session: AsyncSession = Depends(get_session)):
     """
     Increment the download count for a specific pack by ID.
     
     Args:
         pack_id: The unique pack identifier
     """
-    increment_pack_downloads(session=get_session(), pack_id=pack_id)
+    await increment_pack_downloads(session=session, pack_id=pack_id)
     return {"message": f"Download count incremented for pack ID {pack_id}"}
 
 @router.delete("/{pack_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_pack(pack_id: int, session: Session = Depends(get_session)):
+async def delete_pack(pack_id: int, session: AsyncSession = Depends(get_session)):
     """
     Delete a pack by ID.
     
@@ -111,16 +111,12 @@ async def delete_pack(pack_id: int, session: Session = Depends(get_session)):
         pack_id: The unique pack identifier
         session: Database session dependency
     """
-    global packs_storage
-    
-    pack = next((p for p in packs_storage if p.id == pack_id), None)
-
+    pack = await get_pack_by_id(session, pack_id)
     if not pack:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Pack with ID {pack_id} not found"
         )
-    
-    delete_pack_from_db(session, pack_id)
+    await delete_pack_from_db(session, pack_id)
     packs_storage = [p for p in packs_storage if p.id != pack_id]
     logger.info(f"Pack {pack_id} deleted successfully")
