@@ -33,6 +33,8 @@ async def create_pack(request: PackCreateRequest, session: AsyncSession = Depend
         PackResponse with the created pack
     """
     try:
+        # TODO. maybe we can fetch anime metadata first to check if anime exists already
+        # to prevent duplicate packs
         pack = await pack_generator.generate_pack_from_anime(
             session=session,
             anime_name=request.anime_name,
@@ -46,7 +48,7 @@ async def create_pack(request: PackCreateRequest, session: AsyncSession = Depend
         )
     except PackGenerationError as e:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=str(e)
         )
     except Exception as e:
