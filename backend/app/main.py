@@ -16,7 +16,7 @@ origins = [
     "http://localhost",
     "http://localhost:5173",
     "https://ossanimap-cvcabral-adnueduphs-projects.vercel.app",
-    "ossanimap.vercel.app"
+    "https://ossanimap.vercel.app"
 ]
 
 app.add_middleware(
