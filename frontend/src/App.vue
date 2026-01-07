@@ -25,15 +25,15 @@ const rateLimitError = ref(false) // Track if rate limit fetch failed
 
 
 // Fetch rate limits
-const fetchRateLimits = () => {
+const fetchRateLimits = async () => {
   try {
-    const response = fetch('https://catboy.best/api/ratelimits')
+    const response = await fetch('https://catboy.best/api/ratelimits')
     console.log('Rate limits response:', response)
     if (!response.ok) throw new Error('Failed to fetch rate limits')
     
-    const data = response.json()
+    const data = await response.json()
     rateLimitInfo.value = data
-    rateLimitError.value = false // Reset error state on success
+    rateLimitError.value = false
     
     // Show warning if downloads are getting low
     const remaining = data.daily.remaining.downloads
