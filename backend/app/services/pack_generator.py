@@ -2,18 +2,18 @@ from typing import List, Optional
 import logging
 from sqlalchemy.exc import SQLAlchemyError
 from httpx import RequestError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.schemas.anime import Anime
 from app.schemas.osu import Beatmapset
 from app.schemas.pack import Pack, PackCreate
 from app.services.animethemes import get_anime_metadata, AnimeThemesInvalidResponse, AnimeThemesThrottleError, AnimeThemesDown
 from app.services.chimu import search_for_beatmaps
-from app.db.session import SessionLocal
 from app.db.services import save_pack
 from app.utils.format import packdb_to_packschema
 from app.schemas.osu import MODE_MAP
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("uvicorn.error")
 
 
 class PackGenerationError(Exception):
@@ -31,9 +31,9 @@ class PackGenerator:
     3. Filter and collect beatmapset IDs
     4. Create Pack object with metadata
     """
-    def generate_pack_from_anime(
+    async def generate_pack_from_anime(
         self,
-        session,
+        session: AsyncSession,
         anime_name: str,
         status: int = 1,
         mode: int = -1,
@@ -54,10 +54,10 @@ class PackGenerator:
         """
         try:
             # Step 1: Fetch anime metadata
-            anime_metadata = self._fetch_anime_metadata(anime_name)
-            
+            anime_metadata = await self._fetch_anime_metadata(anime_name)
+
             # Step 2: Search for beatmapsets
-            beatmapsets = self._search_beatmapsets(anime_metadata.name, status, mode)
+            beatmapsets = await self._search_beatmapsets(anime_metadata.name, status, mode)
             if not beatmapsets:
                 raise PackGenerationError(f"No beatmapsets found for anime: {anime_name}")
             
@@ -75,19 +75,25 @@ class PackGenerator:
             
             # save to databse after successful creation then convert to schema
             try:
-                p = save_pack(session, anime_metadata, pack)
-                session.commit()
+                logger.info(f"Saving pack {pack.name} to database")
+                p = await save_pack(session, anime_metadata, pack)
+                logger.info(f"Pack {pack.name} saved to database with ID {p.id}")
+                await session.commit()
                 # calls refresh on the pack_db object
                 # this is to reload and get database generated fields and etc.
-                session.refresh(p)
+                await session.refresh(p)
             except SQLAlchemyError as e:
+                await session.rollback()
+                logger.error(f"Database save error for pack {pack.name}: {str(e)}")
                 raise PackGenerationError(f"Database save error") from e
+            logger.info(f"Pack generated successfully for anime: {anime_name} with {len(beatmapset_ids)} beatmapsets")
             p_schema = packdb_to_packschema(p)
             return p_schema
         except Exception as e:
+            logger.error(f"Pack generation failed for {anime_name}: {str(e)}")
             raise PackGenerationError(f"Failed to generate pack for {anime_name}") from e
     
-    def _fetch_anime_metadata(self, anime_name: str) -> Anime:
+    async def _fetch_anime_metadata(self, anime_name: str) -> Anime:
         """
         Fetch anime metadata from AnimeThemes API.
         
@@ -101,11 +107,11 @@ class PackGenerator:
             PackGenerationError: If anime metadata cannot be fetched
         """
         try:
-            return get_anime_metadata(anime_name)
+            return await get_anime_metadata(anime_name)
         except (AnimeThemesInvalidResponse, AnimeThemesThrottleError, AnimeThemesDown) as e:
             raise PackGenerationError(f"Failed to fetch anime metadata") from e
     
-    def _search_beatmapsets(
+    async def _search_beatmapsets(
         self,
         anime_title: str,
         status: int,
@@ -130,9 +136,9 @@ class PackGenerator:
             # Enclose anime title in quotes for exact search
             search_query = f'"{anime_title}"'
             if mode is not None:
-                beatmapsets = search_for_beatmaps(search_query, status=status, mode=mode)
+                beatmapsets = await search_for_beatmaps(search_query, status=status, mode=mode)
             else:
-                beatmapsets = search_for_beatmaps(search_query, status=status)
+                beatmapsets = await search_for_beatmaps(search_query, status=status)
             return beatmapsets
         except RequestError as e: # httpx.RequestError
             raise PackGenerationError(f"Failed to search beatmapsets: {str(e)}")

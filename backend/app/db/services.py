@@ -3,7 +3,7 @@ from .models.anime import AnimeDB
 from .models.pack import PackDB
 from app.schemas.stats import Stats
 
-def save_pack(session, anime_metadata, pack):
+async def save_pack(session, anime_metadata, pack):
     """Saves the Pack and associated Anime to the database."""
     anime_db = AnimeDB(
         name=anime_metadata.name,
@@ -20,7 +20,7 @@ def save_pack(session, anime_metadata, pack):
             pass
 
     session.add(anime_db)
-    session.flush() # flush both anime and pack to assign IDs without committing
+    await session.flush() # flush both anime and pack to assign IDs without committing
 
     pack_db = PackDB(
         name=pack.name,
@@ -28,43 +28,43 @@ def save_pack(session, anime_metadata, pack):
         beatmapset_ids=pack.beatmapset_ids,
     )
     session.add(pack_db)
-    session.flush()
+    await session.flush()
 
     return pack_db
 
-def list_packs(session):
+async def list_packs(session):
     """Lists all packs in the database."""
     stmt = select(PackDB)
-    result = session.scalars(stmt).all()
+    result = (await session.scalars(stmt)).all()
     return result
 
-def get_pack_by_id(session, pack_id):
+async def get_pack_by_id(session, pack_id):
     """Retrieves a pack by its ID."""
     stmt = select(PackDB).where(PackDB.id == pack_id)
-    result = session.scalars(stmt).first()
+    result = (await session.scalars(stmt)).first()
     return result
 
-def increment_pack_downloads(session, pack_id):
+async def increment_pack_downloads(session, pack_id):
     """Increments the download count for a specific pack."""
-    pack = get_pack_by_id(session, pack_id)
+    pack = await get_pack_by_id(session, pack_id)
     pack.downloads += 1
-    session.commit()
+    await session.commit()
 
-def delete_pack(session, pack_id):
+async def delete_pack(session, pack_id):
     """
     Deletes a pack by its ID.
     """
-    pack_to_delete = session.get(PackDB, pack_id)
+    pack_to_delete = await session.get(PackDB, pack_id)
     if pack_to_delete:
-        session.delete(pack_to_delete)
-        session.commit()
+        await session.delete(pack_to_delete)
+        await session.commit()
 
-def get_global_stats(session) -> Stats:
-    total_packs = session.scalar(
+async def get_global_stats(session) -> Stats:
+    total_packs = await session.scalar(
         select(func.count()).select_from(PackDB)
     ) or 0
 
-    total_beatmapsets = session.scalar(
+    total_beatmapsets = await session.scalar(
         select(
             func.sum(
                 func.json_array_length(PackDB.beatmapset_ids)
@@ -72,7 +72,7 @@ def get_global_stats(session) -> Stats:
         )
     ) or 0
 
-    total_downloads = session.scalar(
+    total_downloads = await session.scalar(
         select(func.sum(PackDB.downloads))
     ) or 0
 

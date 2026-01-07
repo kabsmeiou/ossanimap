@@ -8,17 +8,6 @@ ANIMETHEMES_URL = "https://api.animethemes.moe/"
 
 logger = logging.getLogger(__name__)
 
-client = primp.Client(
-    impersonate="safari_17.2.1",
-    impersonate_os="macos",
-    timeout=15,
-)
-
-client.headers_update({
-    "Accept": "application/json",
-    "Referer": "https://animethemes.moe/",
-})
-
 class AnimeThemesTryLater(Exception):
     """
     Base exception indicating the caller should retry after `retry_after` seconds.
@@ -58,8 +47,13 @@ class AnimeThemesDown(AnimeThemesTryLater):
 class AnimeThemesInvalidResponse(Exception):
     pass
 
-def _send_query(url: str, params: dict | None = None) -> dict:
-    r = client.get(url, params=params, timeout=15)
+async def _send_query(url: str, params: dict | None = None) -> dict:
+    async with primp.AsyncClient(
+        impersonate="safari_17.2.1",
+        impersonate_os="macos",
+        timeout=15,
+    ) as client:
+        r = await client.get(url, params=params, timeout=15)
 
     if r.status_code == 429:
         retry_after = int(r.headers.get("Retry-After", 30))
@@ -81,21 +75,21 @@ def _send_query(url: str, params: dict | None = None) -> dict:
     return d
     
 # animethemes api expects anime titles to be in lowercase with underscores instead of spaces
-def get_anime_metadata(anime_title: str) -> Anime:
+async def get_anime_metadata(anime_title: str) -> Anime:
     formatted_title = format_anime_title_for_animethemes(anime_title)
     url = f"{ANIMETHEMES_URL.rstrip('/')}/anime/{formatted_title}"
-    data = _send_query(url)
+    data = await _send_query(url)
     anime_metadata = data["anime"] if "anime" in data else {}
     return Anime(**anime_metadata)
 
 
-def search_anime_by_name(anime_name: str) -> list[AnimeSearchResult]:
+async def search_anime_by_name(anime_name: str) -> list[AnimeSearchResult]:
     url = f"{ANIMETHEMES_URL.rstrip('/')}/search"
     params = {
         "q": anime_name,
         "fields[search]": "anime",
         "page[limit]": "5",
     }
-    data = _send_query(url, params=params)
+    data = await _send_query(url, params=params)
     anime_list = data.get("search", {}).get("anime", [])
     return [AnimeSearchResult(**anime) for anime in anime_list]

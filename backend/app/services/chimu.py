@@ -1,14 +1,16 @@
 from typing import List, Optional
 import httpx
-from app.schemas.osu import Beatmapset
 import logging
+import json
+
+from app.schemas.osu import Beatmapset
 
 logger = logging.getLogger(__name__)
 
 CHIMU_URL = "https://catboy.best/"
 
 # status: 1 = ranked, 2 = loved, mode: 0 = osu!standard, 1 = taiko, 2 = catch, 3 = mania
-def search_for_beatmaps(
+async def search_for_beatmaps(
     keyword: str, 
     status: int = 1, 
     mode: Optional[int] = 0
@@ -24,16 +26,17 @@ def search_for_beatmaps(
     Returns:
         List[Beatmapset]: List of matching beatmapsets
     """
-    with httpx.Client(base_url=CHIMU_URL, timeout=5.0) as client:
+    async with httpx.AsyncClient(base_url=CHIMU_URL, timeout=5.0) as client:
         # Build query parameters
         params = {"q": keyword, "status": status}
         if mode is not None:
             params["mode"] = mode
         try:
-            response = client.get("api/v2/search", params=params)
+            response = await client.get("api/v2/search", params=params)
         except httpx.RequestError as e:
-            raise ("Chimu.moe search request failed") from e
+            raise RuntimeError("Chimu.moe search request failed") from e
         response.raise_for_status()
-        data = response.json()
+        body = await response.aread()
+        data = json.loads(body)
     
     return [Beatmapset(**item) for item in data]
