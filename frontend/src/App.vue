@@ -223,7 +223,7 @@ const filtered = computed(() => {
               <input 
                 v-model="query" 
                 @keypress="handleSearchKeyPress"
-                placeholder="Search packs..." 
+                placeholder="Search or create packs here..." 
                 aria-label="search"
                 :disabled="rateLimitError"
               />
