@@ -33,17 +33,15 @@ async def create_pack(request: PackCreateRequest, session: AsyncSession = Depend
         PackResponse with the created pack
     """
     try:
-        # TODO. maybe we can fetch anime metadata first to check if anime exists already
-        # to prevent duplicate packs
         pack = await pack_generator.generate_pack_from_anime(
             session=session,
-            anime_name=request.anime_name,
+            anime=request.anime,
             status=request.status,
             mode=request.mode
         )
         return PackResponse(
             success=True,
-            message=f"Pack created successfully for {request.anime_name}",
+            message=f"Pack created successfully for {request.anime.name}",
             pack=pack
         )
     except PackGenerationError as e:
@@ -115,10 +113,10 @@ async def delete_pack(pack_id: int, session: AsyncSession = Depends(get_session)
     """
     pack = await get_pack_by_id(session, pack_id)
     if not pack:
+        logger.exception(f"Pack with ID {pack_id} not found for deletion")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Pack with ID {pack_id} not found"
         )
     await delete_pack_from_db(session, pack_id)
-    packs_storage = [p for p in packs_storage if p.id != pack_id]
     logger.info(f"Pack {pack_id} deleted successfully")

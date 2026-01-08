@@ -1,8 +1,8 @@
 """initial schema
 
-Revision ID: 707a546f3b48
+Revision ID: ee192297367c
 Revises: 
-Create Date: 2026-01-04 19:07:12.055858
+Create Date: 2026-01-08 08:12:56.718553
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '707a546f3b48'
+revision: str = 'ee192297367c'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -34,8 +34,8 @@ def upgrade() -> None:
     sa.Column('name', sa.String(length=255), nullable=False),
     sa.Column('anime_id', sa.Integer(), nullable=False),
     sa.Column('beatmapset_ids', sa.JSON(), nullable=False),
+    sa.Column('status', sa.JSON(), nullable=False),
     sa.Column('downloads', sa.Integer(), nullable=False),
-    sa.Column('artifact_url', sa.String(length=500), nullable=True),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('updated_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
     sa.ForeignKeyConstraint(['anime_id'], ['anime.id'], ),
