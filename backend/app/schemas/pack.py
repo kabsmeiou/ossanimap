@@ -1,6 +1,8 @@
 from typing import List, Optional
 from pydantic import BaseModel, Field
 
+from .anime import Anime
+
 class Pack(BaseModel):
     """
     Represents a collection of osu! beatmapsets grouped by anime.
@@ -8,7 +10,8 @@ class Pack(BaseModel):
     id: int = Field(..., description="Unique pack identifier")
     name: str = Field(..., description="Human-readable pack name")
     anime_title: str = Field(..., description="Title of the anime")
-    anime_slug: str = Field(..., description="URL-friendly anime identifier")
+    status: List[int] = Field(..., description="status of beatmap in the pack: 1=ranked,2=loved")
+    mode: List[int] = Field(..., description="modes of beatmap in the pack: -1=all,0=standard,1=taiko,2=catch,3=mania")
     synopsis: Optional[str] = Field(default=None, description="Brief synopsis of the anime")
     beatmapset_ids: List[int] = Field(..., description="List of beatmapset IDs in this pack")
     beatmapset_count: int = Field(..., description="Total number of beatmapsets")
@@ -21,9 +24,13 @@ class PackCreate(BaseModel):
     Model for creating a new Pack.
     """
     name: str = Field(..., description="Human-readable pack name")
+    anime_id: int = Field(..., description="Unique identifier of the associated anime")
     anime_title: str = Field(..., description="Title of the anime")
-    anime_slug: str = Field(..., description="URL-friendly anime identifier")
+    anime_slug: str = Field(..., description="Slug of the anime")
     synopsis: Optional[str] = Field(default=None, description="Brief synopsis of the anime")
+    status: List[int] = Field(..., description="status of beatmapsets in the pack: 1=ranked,2=loved")
+    mode: List[int] = Field(..., description="modes of beatmapsets in the pack: 0=standard,1=taiko,2=catch,3=mania")
+
     beatmapset_ids: List[int] = Field(..., description="List of beatmapset IDs in this pack")
 
 
@@ -31,9 +38,9 @@ class PackCreateRequest(BaseModel):
     """
     Request model for creating a new pack.
     """
-    anime_name: str = Field(..., description="Name of the anime to create a pack for")
-    status: int = Field(default=1, description="Beatmap status: 1=ranked, 2=loved")
-    mode: Optional[int] = Field(default=0, description="Game mode: 0=standard, 1=taiko, 2=catch, 3=mania, None=all")
+    anime: Anime = Field(..., description="Anime metadata for the pack")
+    status: List[int] = Field(default=[1], description="Beatmap status: 1=ranked, 2=loved")
+    mode: Optional[List[int]] = Field(default=[0], description="Game mode: 0=standard, 1=taiko, 2=catch, 3=mania, -1=all")
 
 
 class PackResponse(BaseModel):

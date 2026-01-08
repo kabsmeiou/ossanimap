@@ -4,11 +4,11 @@ from typing import List, Optional, Union
 # Mode mapping for string to int conversion, according to chimu.moe(discord)
 # for now, only use std
 MODE_MAP = {
-    "all": -1,
-    "osu": 0,
-    "taiko": 1,
-    "ctb": 2,
-    "mania": 3,
+    -1: "all",
+    0: "osu",
+    1: "taiko",
+    2: "ctb",
+    3: "mania",
 }
 
 class Beatmap(BaseModel):

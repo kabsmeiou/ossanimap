@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List
 import logging
 from sqlalchemy.exc import SQLAlchemyError
 from httpx import RequestError
@@ -34,9 +34,9 @@ class PackGenerator:
     async def generate_pack_from_anime(
         self,
         session: AsyncSession,
-        anime_name: str,
-        status: int = 1,
-        mode: int = -1,
+        anime: Anime,
+        status: List[int] = [1],
+        mode: List[int] = [0],
     ) -> Pack:
         """
         Orchestrator for generating a beatmap pack for a given anime name.
@@ -53,31 +53,30 @@ class PackGenerator:
             PackGenerationError: If pack generation fails at any stage
         """
         try:
-            # Step 1: Fetch anime metadata
-            anime_metadata = await self._fetch_anime_metadata(anime_name)
-
+            # step 1 is to fetch anime metadata but the creation process
+            # already obtains the needed info so we just pass it directly
+            # from the client
             # Step 2: Search for beatmapsets
-            beatmapsets = await self._search_beatmapsets(anime_metadata.name, status, mode)
+            beatmapsets = await self._search_beatmapsets(anime.name, status, mode)
             if not beatmapsets:
-                raise PackGenerationError(f"No beatmapsets found for anime: {anime_name}")
+                raise PackGenerationError(f"No beatmapsets found for anime: {anime.name}")
             
             # Step 3: Extract beatmapset IDs
             beatmapset_ids = self._extract_beatmapset_ids(beatmapsets)
             
             # Step 4: Create Pack object
             pack: PackCreate = self._create_pack(
-                anime_title=anime_metadata.name,
-                anime_slug=anime_metadata.slug,
-                anime_synopsis=anime_metadata.synopsis,
+                anime=anime,
                 beatmapset_ids=beatmapset_ids,
-                mode=mode
+                mode=mode,
+                status=status,
             )
             
             # save to databse after successful creation then convert to schema
             try:
-                logger.info(f"Saving pack {pack.name} to database")
-                p = await save_pack(session, anime_metadata, pack)
-                logger.info(f"Pack {pack.name} saved to database with ID {p.id}")
+                p = await save_pack(session, anime, pack)
+                if not p:
+                    raise PackGenerationError("Failed to save pack to database")
                 await session.commit()
                 # calls refresh on the pack_db object
                 # this is to reload and get database generated fields and etc.
@@ -86,12 +85,11 @@ class PackGenerator:
                 await session.rollback()
                 logger.error(f"Database save error for pack {pack.name}: {str(e)}")
                 raise PackGenerationError(f"Database save error") from e
-            logger.info(f"Pack generated successfully for anime: {anime_name} with {len(beatmapset_ids)} beatmapsets")
             p_schema = packdb_to_packschema(p)
             return p_schema
         except Exception as e:
-            logger.error(f"Pack generation failed for {anime_name}: {str(e)}")
-            raise PackGenerationError(f"Failed to generate pack for {anime_name}") from e
+            logger.exception(f"Pack generation failed for {anime.name}: {str(e)}")
+            raise PackGenerationError(f"Failed to generate pack for {anime.name}") from e
     
     async def _fetch_anime_metadata(self, anime_name: str) -> Anime:
         """
@@ -114,8 +112,8 @@ class PackGenerator:
     async def _search_beatmapsets(
         self,
         anime_title: str,
-        status: int,
-        mode: int = -1
+        status: List[int] = [1],
+        mode: List[int] = [0]
     ) -> List[Beatmapset]:
         """
         Search for beatmapsets using the anime title.
@@ -160,11 +158,10 @@ class PackGenerator:
     
     def _create_pack(
         self,
-        anime_title: str,
-        anime_slug: str,
-        anime_synopsis: Optional[str],
+        anime: Anime,
         beatmapset_ids: List[int],
-        mode: int = -1
+        mode: List[int] = [0],
+        status: List[int] = [1],
     ) -> PackCreate:
         """
         Create a Pack object with the collected data.
@@ -179,19 +176,22 @@ class PackGenerator:
             PackCreate: Newly created PackCreate object
         """
         # Generate pack name (e.g., "Bakemonogatari - Ranked Maps")
-        pack_name = self._generate_pack_name(anime_title, len(beatmapset_ids), mode=mode)
+        pack_name = self._generate_pack_name(anime.name)
         
         pack = PackCreate(
             name=pack_name,
-            anime_title=anime_title,
-            anime_slug=anime_slug,
-            synopsis=anime_synopsis,
+            anime_id=anime.id,
+            anime_title=anime.name,
+            anime_slug=anime.slug,
+            synopsis=anime.synopsis,
+            mode=mode,
+            status=status,
             beatmapset_ids=beatmapset_ids
         )
     
         return pack
     
-    def _generate_pack_name(self, anime_title: str, beatmapset_count: int, mode: int) -> str:
+    def _generate_pack_name(self, anime_title: str) -> str:
         """
         Generate a descriptive pack name.
         
@@ -202,13 +202,13 @@ class PackGenerator:
         Returns:
             str: Generated pack name
         """
-        return f"{anime_title} - Ranked Maps ({beatmapset_count} beatmapsets) - {MODE_MAP.get(mode, 'All Modes')}"
+        return f"{anime_title} - Beatmap Pack"
     
     def generate_packs_batch(
         self,
         anime_names: List[str],
-        status: int = 1,
-        mode: int = -1
+        status: List[int] = [1],
+        mode: List[int] = [0]
     ) -> List[Pack]:
         """
         Generate multiple packs from a list of anime names.

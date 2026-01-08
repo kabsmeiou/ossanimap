@@ -3,32 +3,39 @@ from .models.anime import AnimeDB
 from .models.pack import PackDB
 from app.schemas.stats import Stats
 
+
+async def get_anime_by_id(session, anime_id):
+    """Retrieves an Anime by its ID."""
+    stmt = select(AnimeDB).where(AnimeDB.id == anime_id)
+    result = (await session.scalars(stmt)).first()
+    return result
+
 async def save_pack(session, anime_metadata, pack):
     """Saves the Pack and associated Anime to the database."""
-    anime_db = AnimeDB(
-        name=anime_metadata.name,
-        slug=anime_metadata.slug,
-        synopsis=anime_metadata.synopsis
-    )
-    # if anime_metadata provides an ID (from external API), use it so that
-    # external references remain stable; otherwise let the DB assign one
-    if hasattr(anime_metadata, "id") and anime_metadata.id is not None:
-        try:
-            anime_db.id = int(anime_metadata.id)
-        except Exception:
-            # fallback: ignore provided id if it cannot be cast to int
-            pass
+    anime_db = await get_anime_by_id(session, anime_metadata.id) if hasattr(anime_metadata, "id") else None
+    if not anime_db:
+        anime_db = AnimeDB(
+            name=anime_metadata.name,
+            slug=anime_metadata.slug,
+            synopsis=anime_metadata.synopsis
+        )
+        # if anime_metadata provides an ID (from external API), use it so that
+        # external references remain stable; otherwise let the DB assign one
+        if hasattr(anime_metadata, "id") and anime_metadata.id is not None:
+            anime_db.id = anime_metadata.id
 
-    session.add(anime_db)
-    await session.flush() # flush both anime and pack to assign IDs without committing
+        session.add(anime_db)
+        await session.flush() 
 
     pack_db = PackDB(
         name=pack.name,
         anime_id=anime_db.id,
         beatmapset_ids=pack.beatmapset_ids,
+        status=pack.status,
+        mode=pack.mode,
     )
     session.add(pack_db)
-    await session.flush()
+    await session.flush() # flush both anime and pack to assign IDs without committing
 
     return pack_db
 
@@ -56,7 +63,7 @@ async def delete_pack(session, pack_id):
     """
     pack_to_delete = await session.get(PackDB, pack_id)
     if pack_to_delete:
-        await session.delete(pack_to_delete)
+        session.delete(pack_to_delete)
         await session.commit()
 
 async def get_global_stats(session) -> Stats:

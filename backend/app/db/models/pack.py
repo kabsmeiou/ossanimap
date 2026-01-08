@@ -1,4 +1,4 @@
-from sqlalchemy import JSON, ForeignKey, String, Integer, Text, func
+from sqlalchemy import ARRAY, JSON, ForeignKey, String, Integer, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import List, Optional
 from datetime import datetime
@@ -11,8 +11,11 @@ class PackDB(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     anime_id: Mapped[int] = mapped_column(ForeignKey("anime.id"), nullable=False)
-    # store beatmapset IDs as JSON for DB portability (works on SQLite/Postgres)
+    # store beatmapset and status IDs as JSON for DB portability (works on SQLite/Postgres)
     beatmapset_ids: Mapped[List[int]] = mapped_column(JSON, nullable=False)
+    # same mapping as chimu at schemas/osu.py
+    mode: Mapped[List[int]] = mapped_column(JSON, nullable=False, default=0)
+    status: Mapped[List[int]] = mapped_column(JSON, nullable=False, default=1)
     downloads: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         server_default=func.now(),
