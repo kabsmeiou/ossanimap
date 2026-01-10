@@ -866,6 +866,7 @@ main {
 }
 
 .loading-emoji {
+  color:#1a202c;
   font-size: 64px;
   margin-bottom: 24px;
   animation: bounce 1s ease-in-out infinite;
