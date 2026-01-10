@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import BeatmapCard from './components/BeatmapCard.vue'
 import api from './api'
 
@@ -17,6 +17,7 @@ const searchLoading = ref(false)
 const searchInput = ref(null)
 const showSearchIndicator = ref(false)
 const requestingPackSlug = ref(null) // Track which suggestion is being processed
+let searchDebounceTimer = null // Debounce timer for search
 
 // Rate limit state
 const rateLimitInfo = ref(null)
@@ -56,7 +57,41 @@ const handleSearchKeyPress = async (event) => {
   }
   
   if (event.key === 'Enter' && query.value.trim().length >= 3) {
+    // Clear any pending debounce timer
+    if (searchDebounceTimer) {
+      clearTimeout(searchDebounceTimer)
+      searchDebounceTimer = null
+    }
+    // Execute search immediately on Enter
     await fetchSearchSuggestions(query.value)
+  }
+}
+
+// Debounced search function
+const debouncedSearch = () => {
+  if (rateLimitError.value) {
+    return
+  }
+  
+  // Clear existing timer
+  if (searchDebounceTimer) {
+    clearTimeout(searchDebounceTimer)
+    searchDebounceTimer = null
+  }
+  
+  const searchQuery = query.value.trim()
+  
+  // Only search anime API if query is 3+ characters
+  if (searchQuery.length >= 3) {
+    // Don't auto-search, only show indicator
+    // User must press Enter to actually search
+    showSearchIndicator.value = true
+    showSuggestions.value = false
+  } else {
+    // Clear suggestions if query is too short
+    showSuggestions.value = false
+    searchSuggestions.value = []
+    showSearchIndicator.value = false
   }
 }
 
@@ -109,16 +144,23 @@ const handleClickOutside = (event) => {
   }
 }
 
+// Watch query changes for debounced search
+watch(query, () => {
+  debouncedSearch()
+})
+
 onMounted(() => {
   fetchRateLimits()
   fetchPacks()
   document.addEventListener('click', handleClickOutside)
 })
 
-// Cleanup
-onMounted(() => {
-  return () => {
-    document.removeEventListener('click', handleClickOutside)
+// Cleanup on unmount
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+  // Clear debounce timer on unmount
+  if (searchDebounceTimer) {
+    clearTimeout(searchDebounceTimer)
   }
 })
 
@@ -423,6 +465,7 @@ const filtered = computed(() => {
 }
 
 .controls {
+  position: relative;
   display: flex;
   gap: 16px;
   align-items: flex-start;
@@ -499,16 +542,20 @@ const filtered = computed(() => {
 
 /* Search Indicator */
 .search-indicator {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 8px;
   padding: 10px 12px;
   background: #f7fafc;
   border-radius: 8px;
   font-size: 13px;
   color: #4a5568;
   border-left: 3px solid #667eea;
+  z-index: 999;
 }
 
 .search-indicator-message,
