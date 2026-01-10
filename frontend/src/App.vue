@@ -118,8 +118,14 @@ const handleSuggestionClick = async (suggestion) => {
   requestingPackSlug.value = suggestion.slug
   
   const data = {
-    anime_name: suggestion.name,
-    status: 1,
+    anime: {
+      id: suggestion.id,
+      name: suggestion.name,
+      slug: suggestion.slug,
+      synopsis: suggestion.synopsis || null,
+    },
+    status: [1],
+    mode: [0],
   }
 
   try {
@@ -173,6 +179,7 @@ const fetchPacks = async () => {
   try {
     const data = await api.packs.list()
     packs.value = data
+    console.log('Fetched packs:', data)
   } catch (err) {
     error.value = err.message
     // get response code
@@ -844,7 +851,7 @@ main {
 
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  grid-template-columns: repeat(2, minmax(340px, 1fr));
   gap: 20px;
 }
 

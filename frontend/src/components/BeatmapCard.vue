@@ -2,6 +2,8 @@
   <article class="card">
     <div class="cover" :style="coverStyle">
       <div class="overlay"></div>
+      <!-- use pack.image_link for the cover image and ensure to center -->
+      <img v-if="pack.image_link" :src="pack.image_link" alt="Anime cover image" />
     </div>
     <div class="content">
       <div class="header">
@@ -194,14 +196,33 @@ const handleDownload = async () => {
 
 
 const coverStyle = computed(() => {
+  if (props.pack.image_link) return {}
+
   const label = (props.pack.anime_title || props.pack.name || '').toString()
-  const safeLabel = label.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><defs><linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#667eea;stop-opacity:1" /><stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" /></linearGradient></defs><rect width="100%" height="100%" fill="url(#grad)"/><text x="50%" y="50%" fill="white" font-size="22" font-weight="600" font-family="Arial" dominant-baseline="middle" text-anchor="middle" opacity="0.9">${safeLabel}</text></svg>`
-  const encoded = encodeURIComponent(svg)
+  const safeLabel = label
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300">
+    <defs>
+      <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#667eea"/>
+        <stop offset="100%" stop-color="#764ba2"/>
+      </linearGradient>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#grad)"/>
+    <text x="50%" y="50%" fill="white" font-size="22" font-weight="600"
+      font-family="Arial" dominant-baseline="middle" text-anchor="middle"
+      opacity="0.9">${safeLabel}</text>
+  </svg>`
+
   return {
-    backgroundImage: `url("data:image/svg+xml;utf8,${encoded}")`
+    backgroundImage: `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}")`
   }
 })
+
 
 const shortSynopsis = computed(() => {
   if (!props.pack.synopsis) return ''
@@ -229,23 +250,34 @@ const formatNumber = (num) => {
 }
 
 .card:hover {
-  transform: translateY(-4px);
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.08);
 }
 
 .cover {
   position: relative;
   width: 100%;
-  height: 100px;
-  background-size: cover;
-  background-position: center;
+  height: 160px;
   overflow: hidden;
+}
+
+.cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
 }
 
 .overlay {
   position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.3) 100%);
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.35),
+    transparent
+  );
 }
 
 .content {
