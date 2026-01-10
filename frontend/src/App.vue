@@ -372,7 +372,7 @@ const filtered = computed(() => {
         <!-- Loading state -->
         <div v-if="loading" class="loading-state">
           <div class="loading-emoji">৻( •̀ ᗜ •́ ৻)</div>
-          <p class="loading-message">Fetching database.</p>
+          <p class="loading-message">Fetching database</p>
           <p class="loading-hint">Please wait for a moment, it can take about 30 seconds if the server was idle</p>
         </div>
 
@@ -390,7 +390,7 @@ const filtered = computed(() => {
         <!-- Empty state -->
         <div v-else-if="filtered.length === 0" class="empty-state">
           <div class="empty-emoji">૮(˶ㅠ︿ㅠ)ა</div>
-          <p class="empty-message">There are no packs yet.</p>
+          <p class="empty-message">There are no packs yet</p>
           <p class="empty-hint">You may request for packs of your desired anime through the search bar</p>
         </div>
 
@@ -866,7 +866,7 @@ main {
 }
 
 .loading-emoji {
-  color:#1a202c;
+  color:#d8cc6e;
   font-size: 64px;
   margin-bottom: 24px;
   animation: bounce 1s ease-in-out infinite;
