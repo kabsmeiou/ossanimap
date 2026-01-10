@@ -87,6 +87,22 @@ async def get_anime_metadata(anime_title: str) -> Anime:
     anime_metadata = data["anime"] if "anime" in data else {}
     return Anime(**anime_metadata)
 
+async def fetch_anime_image_link(anime_title: str) -> str | None:
+    formatted_title = format_anime_title_for_animethemes(anime_title)
+    params = {
+        "include": "images"
+    }
+    url = f"{ANIMETHEMES_URL.rstrip('/')}/anime/{formatted_title}"
+    data = await _send_query(url, params=params)
+    anime_metadata = data["anime"] if "anime" in data else {}
+    images = anime_metadata.get("images", [])
+    if images:
+        # Return the first image link
+        image_link = images[0].get("link")
+        logger.info("Fetched image link for anime '%s': %s", anime_title, image_link)
+        return image_link
+    logger.info("No images found for anime '%s'", anime_title)
+    return None
 
 async def search_anime_by_name(anime_name: str) -> list[AnimeSearchResult]:
     url = f"{ANIMETHEMES_URL.rstrip('/')}/anime"
@@ -97,4 +113,5 @@ async def search_anime_by_name(anime_name: str) -> list[AnimeSearchResult]:
     logger.info("url: %s, params: %s", url, params)
     data = await _send_query(url, params=params)
     anime_list = data.get("anime", [])
+    logger.info("Found %d anime matching '%s'", len(anime_list), anime_name)
     return [AnimeSearchResult(**anime) for anime in anime_list]

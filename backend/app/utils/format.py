@@ -27,6 +27,7 @@ def packdb_to_packschema(pack_db: PackDB) -> Pack:
             status=pack_db.status,
             mode=pack_db.mode,
             anime_title=pack_db.anime.name,
+            image_link=pack_db.anime.image_link,
             synopsis=pack_db.anime.synopsis,
             beatmapset_ids=pack_db.beatmapset_ids,
             downloads=pack_db.downloads,

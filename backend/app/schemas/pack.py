@@ -10,6 +10,7 @@ class Pack(BaseModel):
     id: int = Field(..., description="Unique pack identifier")
     name: str = Field(..., description="Human-readable pack name")
     anime_title: str = Field(..., description="Title of the anime")
+    image_link: Optional[str] = Field(default=None, description="Link to the anime image")
     status: List[int] = Field(..., description="status of beatmap in the pack: 1=ranked,2=loved")
     mode: List[int] = Field(..., description="modes of beatmap in the pack: -1=all,0=standard,1=taiko,2=catch,3=mania")
     synopsis: Optional[str] = Field(default=None, description="Brief synopsis of the anime")
@@ -27,7 +28,8 @@ class PackCreate(BaseModel):
     anime_id: int = Field(..., description="Unique identifier of the associated anime")
     anime_title: str = Field(..., description="Title of the anime")
     anime_slug: str = Field(..., description="Slug of the anime")
-    synopsis: Optional[str] = Field(default=None, description="Brief synopsis of the anime")
+    anime_synopsis: Optional[str] = Field(default=None, description="Brief synopsis of the anime")
+    image_link: Optional[str] = Field(default=None, description="Link to the anime image")
     status: List[int] = Field(..., description="status of beatmapsets in the pack: 1=ranked,2=loved")
     mode: List[int] = Field(..., description="modes of beatmapsets in the pack: 0=standard,1=taiko,2=catch,3=mania")
 
