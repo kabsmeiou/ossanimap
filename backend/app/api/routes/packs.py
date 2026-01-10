@@ -8,13 +8,14 @@ from app.schemas.pack import Pack, PackCreateRequest, PackResponse
 from app.services.pack_generator import pack_generator, PackGenerationError
 from app.utils.format import packdb_to_packschema
 from app.db.session import get_session
+from app.utils.helpers import create_anime_schema
 
 router = APIRouter(
     prefix="/packs",
     tags=["packs"]
 )
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("uvicorn.error")
 
 @router.post("/", response_model=PackResponse, status_code=status.HTTP_201_CREATED)
 async def create_pack(request: PackCreateRequest, session: AsyncSession = Depends(get_session)):
@@ -33,23 +34,32 @@ async def create_pack(request: PackCreateRequest, session: AsyncSession = Depend
         PackResponse with the created pack
     """
     try:
+        anime_schema = await create_anime_schema(
+            id=request.anime.id,
+            name=request.anime.name,
+            slug=request.anime.slug,
+            synopsis=request.anime.synopsis,
+        )
         pack = await pack_generator.generate_pack_from_anime(
             session=session,
-            anime=request.anime,
+            anime=anime_schema,
             status=request.status,
             mode=request.mode
         )
+        logger.info(pack.image_link)
         return PackResponse(
             success=True,
             message=f"Pack created successfully for {request.anime.name}",
             pack=pack
         )
     except PackGenerationError as e:
+        logger.exception(f"Pack generation failed: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=str(e)
         )
     except Exception as e:
+        logger.exception(f"Error msg: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create pack: {str(e)}"

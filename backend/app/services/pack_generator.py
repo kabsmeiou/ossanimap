@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 import logging
 from sqlalchemy.exc import SQLAlchemyError
 from httpx import RequestError
@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.schemas.anime import Anime
 from app.schemas.osu import Beatmapset
 from app.schemas.pack import Pack, PackCreate
-from app.services.animethemes import get_anime_metadata, AnimeThemesInvalidResponse, AnimeThemesThrottleError, AnimeThemesDown
+from app.services.animethemes import get_anime_metadata, AnimeThemesInvalidResponse, AnimeThemesThrottleError, AnimeThemesDown, fetch_anime_image_link
 from app.services.chimu import search_for_beatmaps
 from app.db.services import save_pack
 from app.utils.format import packdb_to_packschema
@@ -183,9 +183,10 @@ class PackGenerator:
             anime_id=anime.id,
             anime_title=anime.name,
             anime_slug=anime.slug,
-            synopsis=anime.synopsis,
-            mode=mode,
+            anime_synopsis=anime.synopsis,
+            image_link=anime.image_link,
             status=status,
+            mode=mode,
             beatmapset_ids=beatmapset_ids
         )
     
