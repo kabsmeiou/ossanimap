@@ -288,7 +288,7 @@ const filtered = computed(() => {
             <line x1="12" y1="16" x2="12.01" y2="16"></line>
           </svg>
           <div class="banner-text">
-            <strong>Service Unavailable:</strong>
+            <strong>(｡•́ㅁ•̀｡) Service Unavailable:</strong>
             <span>
               chimu.moe is currently unreachable. Downloads and search requests are temporarily disabled.
             </span>
@@ -329,8 +329,9 @@ const filtered = computed(() => {
 
         <!-- Loading state -->
         <div v-if="loading" class="loading-state">
-          <div class="spinner"></div>
-          <p>Loading packs...</p>
+          <div class="loading-emoji">৻( •̀ ᗜ •́ ৻)</div>
+          <p class="loading-message">Fetching database.</p>
+          <p class="loading-hint">Please wait for a moment, it can take about 30 seconds if the server was idle</p>
         </div>
 
         <!-- Error state -->
@@ -342,6 +343,13 @@ const filtered = computed(() => {
           </svg>
           <p>{{ error }}</p>
           <button @click="fetchPacks" class="retry-btn">Retry</button>
+        </div>
+
+        <!-- Empty state -->
+        <div v-else-if="filtered.length === 0" class="empty-state">
+          <div class="empty-emoji">૮(˶ㅠ︿ㅠ)ა</div>
+          <p class="empty-message">There are no packs yet.</p>
+          <p class="empty-hint">You may request for packs of your desired anime through the search bar</p>
         </div>
 
         <!-- Packs list -->
@@ -810,6 +818,36 @@ main {
   font-size: 16px;
 }
 
+.loading-emoji {
+  font-size: 64px;
+  margin-bottom: 24px;
+  animation: bounce 1s ease-in-out infinite;
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-15px) scale(1.05);
+  }
+}
+
+.loading-message {
+  margin: 0 0 12px !important;
+  color: #2d3748 !important;
+  font-size: 20px !important;
+  font-weight: 600;
+}
+
+.loading-hint {
+  margin: 0 !important;
+  color: #718096 !important;
+  font-size: 15px !important;
+  max-width: 500px;
+  line-height: 1.6;
+}
+
 .spinner {
   width: 48px;
   height: 48px;
@@ -850,6 +888,47 @@ main {
 
 .retry-btn:active {
   transform: translateY(0);
+}
+
+/* Empty State */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  text-align: center;
+}
+
+.empty-emoji {
+  font-size: 64px;
+  color: #1a202c;
+  margin-bottom: 24px;
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.empty-message {
+  margin: 0 0 12px;
+  color: #2d3748;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.empty-hint {
+  margin: 0;
+  color: #718096;
+  font-size: 15px;
+  max-width: 500px;
+  line-height: 1.6;
 }
 
 @media (max-width: 768px) {
@@ -908,6 +987,30 @@ main {
   .banner-text {
     font-size: 13px;
   }
+
+  .loading-emoji {
+    font-size: 56px;
+  }
+
+  .loading-message {
+    font-size: 18px !important;
+  }
+
+  .loading-hint {
+    font-size: 14px !important;
+  }
+
+  .empty-emoji {
+    font-size: 56px;
+  }
+
+  .empty-message {
+    font-size: 18px;
+  }
+
+  .empty-hint {
+    font-size: 14px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -945,6 +1048,32 @@ main {
 
   .banner-text {
     font-size: 12px;
+  }
+
+  .loading-emoji {
+    font-size: 48px;
+  }
+
+  .loading-message {
+    font-size: 16px !important;
+  }
+
+  .loading-hint {
+    font-size: 13px !important;
+    padding: 0 16px;
+  }
+
+  .empty-emoji {
+    font-size: 48px;
+  }
+
+  .empty-message {
+    font-size: 16px;
+  }
+
+  .empty-hint {
+    font-size: 13px;
+    padding: 0 16px;
   }
 }
 </style>
