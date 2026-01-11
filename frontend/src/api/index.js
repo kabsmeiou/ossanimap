@@ -108,7 +108,7 @@ export const api = {
      * GET /packs/{id}/downloads
      */
     incrementDownloads: (id) =>
-      request(`/packs/${id}/downloads`),
+      request(`/packs/${id}/increment-downloads`),
   },
 
   /**

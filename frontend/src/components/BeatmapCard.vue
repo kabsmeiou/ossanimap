@@ -74,6 +74,7 @@ import { ref, computed } from 'vue'
 import DownloadConfirmModal from './DownloadConfirmModal.vue'
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver'; // Optional helper, or use <a> tag
+import api from '../api'
 
 const props = defineProps({
   pack: { type: Object, required: true },
@@ -214,8 +215,31 @@ const handleDownload = async () => {
   // Reset state
   isDownloading.value = false
   downloadProgress.value = { current: 0, total: 0, downloadedMB: 0 }
+
+  // Increment download count in backend
+  incrementDownloadCount();
+
+  // refresh data
+  getPackData();
 };
 
+const getPackData = async () => {
+  try {
+    const updatedPack = await api.packs.get(props.pack.id)
+    // Update pack data
+    props.pack.downloads = updatedPack.downloads
+  } catch (err) {
+    console.error('Failed to refresh pack data:', err)
+  }
+}
+
+const incrementDownloadCount = async () => {
+  try {
+    await api.packs.incrementDownloads(props.pack.id)
+  } catch (err) {
+    console.error('Failed to increment download count:', err)
+  }
+}
 
 const coverStyle = computed(() => {
   if (props.pack.image_link) return {}
