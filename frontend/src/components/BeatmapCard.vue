@@ -37,7 +37,10 @@
         >
           <div v-if="isDownloading" class="download-progress">
             <div class="progress-content">
-              <span class="progress-text">Downloading {{ downloadProgress.current }} / {{ downloadProgress.total }}</span>
+              <span class="progress-text">
+                Downloading {{ downloadProgress.current }} / {{ downloadProgress.total }}
+                <span class="progress-size">({{ downloadProgress.downloadedMB.toFixed(1) }} MB)</span>
+              </span>
               <div class="progress-bar-container">
                 <div 
                   class="progress-bar-fill" 
@@ -79,7 +82,7 @@ const props = defineProps({
 
 const showModal = ref(false)
 const isDownloading = ref(false)
-const downloadProgress = ref({ current: 0, total: 0 })
+const downloadProgress = ref({ current: 0, total: 0, downloadedMB: 0 })
 const rateLimitWarning = ref('')
 
 // Check rate limits before download
@@ -153,12 +156,33 @@ const handleDownloadClick = async () => {
   }
 }
 
+// try no video download first by adding 'n' to the download URL'
+// e.g., `https://catboy.best/d/${id}n` catch "This set does not exist." error
+// then fallback to normal download URL
+const downloadWithoutVideo = async (id) => {
+  const tryFetch = async (url) => {
+    const res = await fetch(url)
+    if (!res.ok) throw res
+    return res.blob()
+  }
+
+  try {
+    return await tryFetch(`https://catboy.best/d/${id}n`)
+  } catch (err) {
+    if (err instanceof Response && err.status !== 404) {
+      throw new Error(`No-video download failed (${err.status})`)
+    }
+
+    console.warn(`No-video not available for ${id}, falling back.`)
+    return await tryFetch(`https://catboy.best/d/${id}`)
+  }
+}
+
 const handleDownload = async () => {
   const ids = props.pack.beatmapset_ids;
-  if (!confirm(`Download and pack ${ids.length} beatmaps into a ZIP?`)) return;
 
   isDownloading.value = true
-  downloadProgress.value = { current: 0, total: ids.length }
+  downloadProgress.value = { current: 0, total: ids.length, downloadedMB: 0 }
 
   const zip = new JSZip();
   const folder = zip.folder("beatmap_pack");
@@ -166,16 +190,14 @@ const handleDownload = async () => {
   // Use Promise.all to fetch files in parallel
   const downloadPromises = ids.map(async (id, index) => {
     try {
-      const response = await fetch(`https://catboy.best/d/${id}`);
-      if (!response.ok) throw new Error(`Failed to fetch ${id}`);
-      
-      const blob = await response.blob();
+      const blob = await downloadWithoutVideo(id);
       // Add to zip: filename usually comes from headers, 
       // but you can default to id.osz
       folder.file(`${id}.osz`, blob);
-      
       // Update progress
       downloadProgress.value.current += 1
+      // Add blob size to total downloaded MB
+      downloadProgress.value.downloadedMB += blob.size / (1024 * 1024)
     } catch (err) {
       console.error(`Error downloading map ${id}:`, err);
       // Still increment progress even on error
@@ -191,7 +213,7 @@ const handleDownload = async () => {
   
   // Reset state
   isDownloading.value = false
-  downloadProgress.value = { current: 0, total: 0 }
+  downloadProgress.value = { current: 0, total: 0, downloadedMB: 0 }
 };
 
 
@@ -256,7 +278,7 @@ const formatNumber = (num) => {
 .cover {
   position: relative;
   width: 100%;
-  height: 160px;
+  height: 8rem;
   overflow: hidden;
 }
 
@@ -301,7 +323,7 @@ const formatNumber = (num) => {
 }
 
 .pack-name {
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 700;
   margin: 0;
   color: #1a202c;
@@ -314,7 +336,7 @@ const formatNumber = (num) => {
   color: white;
   padding: 4px 12px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 600;
   align-self: flex-start;
   box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
@@ -338,7 +360,7 @@ const formatNumber = (num) => {
   align-items: center;
   gap: 6px;
   color: #718096;
-  font-size: 13px;
+  font-size: 10px;
   font-weight: 500;
 }
 
@@ -364,9 +386,9 @@ const formatNumber = (num) => {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 12px 20px;
+  padding: 10px 12px;
   border-radius: 10px;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -422,6 +444,13 @@ const formatNumber = (num) => {
   font-size: 13px;
   font-weight: 600;
   text-align: center;
+}
+
+.progress-size {
+  font-size: 12px;
+  font-weight: 500;
+  opacity: 0.9;
+  margin-left: 4px;
 }
 
 .progress-bar-container {

@@ -29,7 +29,6 @@ const rateLimitError = ref(false) // Track if rate limit fetch failed
 const fetchRateLimits = async () => {
   try {
     const response = await fetch('https://catboy.best/api/ratelimits')
-    console.log('Rate limits response:', response)
     if (!response.ok) throw new Error('Failed to fetch rate limits')
     
     const data = await response.json()
@@ -132,12 +131,11 @@ const handleSuggestionClick = async (suggestion) => {
     await api.packs.create(data).then(() => {
       fetchPacks()
     })
-    alert(`Request for pack "${suggestion.name}" has been submitted!`)
     showSuggestions.value = false
     query.value = ''
   } catch (err) {
     console.error('Failed to submit request:', err)
-    alert('Failed to submit request. Please try again later.')
+    alert(err)
   } finally {
     requestingPackSlug.value = null
   }
@@ -179,53 +177,9 @@ const fetchPacks = async () => {
   try {
     const data = await api.packs.list()
     packs.value = data
-    console.log('Fetched packs:', data)
   } catch (err) {
     error.value = err.message
-    // get response code
-    if (err.response) {
-      console.log('Response code:', err.response.status)
-    }
     console.error('Failed to fetch packs:', err)
-    // Fallback to dummy data on error
-    packs.value = [
-      {
-        id: 1,
-        name: 'Renge Hanabi Pack',
-        anime_title: 'Renge Hanabi',
-        anime_slug: 'renge-hanabi',
-        synopsis: 'A dreamy collection of melodic beatmapsets inspired by Renge Hanabi.',
-        beatmapset_ids: [101, 102, 103],
-        beatmapset_count: 3,
-        downloads: 1240,
-        created_at: '2023-10-01T12:00:00Z',
-        updated_at: '2024-02-01T12:00:00Z'
-      },
-      {
-        id: 2,
-        name: 'Out of Place Pack',
-        anime_title: 'Out of Place',
-        anime_slug: 'out-of-place',
-        synopsis: 'Upbeat pack with fast-paced osu! maps.',
-        beatmapset_ids: [201, 202],
-        beatmapset_count: 2,
-        downloads: 980,
-        created_at: '2024-01-10T09:00:00Z',
-        updated_at: '2024-12-01T09:00:00Z'
-      },
-      {
-        id: 3,
-        name: 'Various Artists Collection',
-        anime_title: 'Ms. VICTORIA',
-        anime_slug: 'ms-victoria',
-        synopsis: null,
-        beatmapset_ids: [301, 302, 303, 304],
-        beatmapset_count: 4,
-        downloads: 760,
-        created_at: '2022-06-05T10:00:00Z',
-        updated_at: '2023-07-01T11:00:00Z'
-      }
-    ]
   } finally {
     loading.value = false
   }
@@ -805,6 +759,9 @@ const filtered = computed(() => {
 
 main {
   margin-top: 0;
+  max-width: 80rem;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .results-header {
