@@ -16,7 +16,7 @@ from sqlalchemy import engine_from_config, pool
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = os.getenv("DATABASE_URL_DEV")
 
 if DATABASE_URL:
     config.set_main_option("sqlalchemy.url", DATABASE_URL)

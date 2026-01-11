@@ -7,7 +7,7 @@ import typing
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./dev.db")
+DATABASE_URL = os.getenv("DATABASE_URL_DEV", "sqlite+aiosqlite:///./dev.db")
 
 engine = create_async_engine(
     DATABASE_URL,

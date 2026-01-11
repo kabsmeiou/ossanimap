@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List
 import logging
 from sqlalchemy.exc import SQLAlchemyError
 from httpx import RequestError
@@ -7,11 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.schemas.anime import Anime
 from app.schemas.osu import Beatmapset
 from app.schemas.pack import Pack, PackCreate
-from app.services.animethemes import get_anime_metadata, AnimeThemesInvalidResponse, AnimeThemesThrottleError, AnimeThemesDown, fetch_anime_image_link
-from app.services.chimu import search_for_beatmaps
+from app.services.animethemes import get_anime_metadata, AnimeThemesInvalidResponse, AnimeThemesThrottleError, AnimeThemesDown
+from app.services.osu import search_beatmapsets
 from app.db.services import save_pack
 from app.utils.format import packdb_to_packschema
-from app.schemas.osu import MODE_MAP
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -60,8 +59,12 @@ class PackGenerator:
             beatmapsets = await self._search_beatmapsets(anime.name, status, mode)
             if not beatmapsets:
                 raise PackGenerationError(f"No beatmapsets found for anime: {anime.name}")
-            
+            logger.info(f"Found {len(beatmapsets)} beatmapsets for anime: {anime.name}")
+
             # Step 3: Extract beatmapset IDs
+            # TODO. if multiple beatmaps have the same songs, only keep the
+            # most favourited one(?) or have an option to keep only that or
+            # most played map
             beatmapset_ids = self._extract_beatmapset_ids(beatmapsets)
             
             # Step 4: Create Pack object
@@ -131,12 +134,10 @@ class PackGenerator:
             PackGenerationError: If search fails
         """
         try:
-            # Enclose anime title in quotes for exact search
-            search_query = f'"{anime_title}"'
             if mode is not None:
-                beatmapsets = await search_for_beatmaps(search_query, status=status, mode=mode)
+                beatmapsets = await search_beatmapsets(anime_title)
             else:
-                beatmapsets = await search_for_beatmaps(search_query, status=status)
+                beatmapsets = await search_beatmapsets(anime_title)
             return beatmapsets
         except RequestError as e: # httpx.RequestError
             raise PackGenerationError(f"Failed to search beatmapsets: {str(e)}")
