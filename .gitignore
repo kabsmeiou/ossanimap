@@ -17,3 +17,5 @@ PACK_GENERATION.md
 
 # vscode settings
 .vscode/
+
+.DS_Store
