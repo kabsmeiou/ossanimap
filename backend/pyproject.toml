@@ -5,11 +5,13 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "aiohttp>=3.13.3",
     "aiosqlite>=0.22.1",
     "alembic>=1.17.2",
     "asyncpg>=0.31.0",
     "fastapi[standard]>=0.128.0",
     "greenlet>=3.3.0",
+    "ossapi>=5.3.3",
     "primp>=0.15.0",
     "psycopg2-binary>=2.9.11",
     "pytest>=9.0.2",
