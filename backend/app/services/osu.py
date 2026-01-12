@@ -32,6 +32,8 @@ async def fetch_beatmapset(beatmapset_id: int) -> Beatmapset:
     logger.info(f"Fetched beatmapset: {beatmapset}")
     return beatmapset
 
+# TODO. handle issue with not getting all intended results due to title variations
+# animethemes contain the full title while tags in osu! may be shortened or have slight differences
 async def search_beatmapsets(keyword: str) -> list[Beatmapset]:
     """
     Search for beatmapsets on osu! API via Ossapi.
@@ -51,6 +53,5 @@ async def search_beatmapsets(keyword: str) -> list[Beatmapset]:
         ]
     except Exception as e:
         logger.error(f"Error searching beatmapsets with keyword '{keyword}': {str(e)}")
-        raise RuntimeError(f"Failed to search beatmapsets with keyword '{keyword}'") from e
-    logger.info(f"Found {len(beatmapsets)} beatmapsets for keyword '{keyword}'")
+        raise Exception(f"Failed to search beatmapsets with keyword '{keyword}'") from e
     return beatmapsets

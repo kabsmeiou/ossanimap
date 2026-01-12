@@ -33,37 +33,23 @@ async def create_pack(request: PackCreateRequest, session: AsyncSession = Depend
     Returns:
         PackResponse with the created pack
     """
-    try:
-        anime_schema = await create_anime_schema(
-            id=request.anime.id,
-            name=request.anime.name,
-            slug=request.anime.slug,
-            synopsis=request.anime.synopsis,
-        )
-        pack = await pack_generator.generate_pack_from_anime(
-            session=session,
-            anime=anime_schema,
-            status=request.status,
-            mode=request.mode
-        )
-        logger.info(pack.image_link)
-        return PackResponse(
-            success=True,
-            message=f"Pack created successfully for {request.anime.name}",
-            pack=pack
-        )
-    except PackGenerationError as e:
-        logger.exception(f"Pack generation failed: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=str(e)
-        )
-    except Exception as e:
-        logger.exception(f"Error msg: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create pack: {str(e)}"
-        )
+    anime_schema = await create_anime_schema(
+        id=request.anime.id,
+        name=request.anime.name,
+        slug=request.anime.slug,
+        synopsis=request.anime.synopsis,
+    )
+    pack = await pack_generator.generate_pack_from_anime(
+        session=session,
+        anime=anime_schema,
+        status=request.status,
+        mode=request.mode
+    )
+    return PackResponse(
+        success=True,
+        message=f"Pack created successfully for {request.anime.name}",
+        pack=pack
+    )
 
 @router.get("/", response_model=List[Pack])
 async def list_packs(session: AsyncSession = Depends(get_session)):

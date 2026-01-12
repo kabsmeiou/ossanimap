@@ -75,7 +75,7 @@ async def _send_query(url: str, params: dict | None = None) -> dict:
     try:
         d = json.loads(raw_text)
     except json.JSONDecodeError as e:
-        raise AnimeThemesInvalidResponse("Animethemes returned truncated or invalid JSON") from e
+        raise json.JSONDecodeError("Animethemes returned truncated or invalid JSON") from e
 
     return d
     
@@ -101,7 +101,6 @@ async def fetch_anime_image_link(anime_title: str) -> str | None:
         image_link = images[0].get("link")
         logger.info("Fetched image link for anime '%s': %s", anime_title, image_link)
         return image_link
-    logger.info("No images found for anime '%s'", anime_title)
     return None
 
 async def search_anime_by_name(anime_name: str) -> list[AnimeSearchResult]:
@@ -110,8 +109,6 @@ async def search_anime_by_name(anime_name: str) -> list[AnimeSearchResult]:
         "q": anime_name,
         "page[size]": "5",
     }
-    logger.info("url: %s, params: %s", url, params)
     data = await _send_query(url, params=params)
     anime_list = data.get("anime", [])
-    logger.info("Found %d anime matching '%s'", len(anime_list), anime_name)
     return [AnimeSearchResult(**anime) for anime in anime_list]
