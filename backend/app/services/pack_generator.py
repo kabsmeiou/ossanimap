@@ -1,3 +1,4 @@
+import json
 from typing import List
 import logging
 from sqlalchemy.exc import SQLAlchemyError
@@ -14,10 +15,27 @@ from app.utils.format import packdb_to_packschema
 
 logger = logging.getLogger("uvicorn.error")
 
-
+# -4 database save error
+# -3 json decode error from animethemes
+# -2 animethemes api fetch error
+# -1 beatmapset search error
+# 0 no beatmapsets found
 class PackGenerationError(Exception):
     """Raised when pack generation fails"""
-    pass
+    def __init__(
+        self,
+        *,
+        anime_name: str | None = None,
+        code: int = 0,
+        message: str = "Pack generation failed",
+    ):
+        self.anime_name = anime_name
+        self.code = code
+        self.message = message
+        super().__init__(message)
+
+    def __str__(self) -> str:
+        return f"[code={self.code}] {self.message} (anime={self.anime_name})"
 
 
 class PackGenerator:
@@ -57,14 +75,11 @@ class PackGenerator:
             # from the client
             # Step 2: Search for beatmapsets
             beatmapsets = await self._search_beatmapsets(anime.name, status, mode)
-            if not beatmapsets:
-                raise PackGenerationError(f"No beatmapsets found for anime: {anime.name}")
-            logger.info(f"Found {len(beatmapsets)} beatmapsets for anime: {anime.name}")
 
             # Step 3: Extract beatmapset IDs
             # TODO. if multiple beatmaps have the same songs, only keep the
             # most favourited one(?) or have an option to keep only that or
-            # most played map
+            # most played set
             beatmapset_ids = self._extract_beatmapset_ids(beatmapsets)
             
             # Step 4: Create Pack object
@@ -78,8 +93,6 @@ class PackGenerator:
             # save to databse after successful creation then convert to schema
             try:
                 p = await save_pack(session, anime, pack)
-                if not p:
-                    raise PackGenerationError("Failed to save pack to database")
                 await session.commit()
                 # calls refresh on the pack_db object
                 # this is to reload and get database generated fields and etc.
@@ -87,12 +100,14 @@ class PackGenerator:
             except SQLAlchemyError as e:
                 await session.rollback()
                 logger.error(f"Database save error for pack {pack.name}: {str(e)}")
-                raise PackGenerationError(f"Database save error") from e
+                raise PackGenerationError(anime_name=anime.name, code=-4, message="Database save error") from e
             p_schema = packdb_to_packschema(p)
             return p_schema
+        except PackGenerationError:
+            raise
         except Exception as e:
-            logger.exception(f"Pack generation failed for {anime.name}: {str(e)}")
-            raise PackGenerationError(f"Failed to generate pack for {anime.name}") from e
+            logger.error(f"Unexpected error generating pack for {anime.name}: {str(e)}")
+            raise PackGenerationError(anime_name=anime.name, code=-1, message=str(e)) from e
     
     async def _fetch_anime_metadata(self, anime_name: str) -> Anime:
         """
@@ -109,8 +124,11 @@ class PackGenerator:
         """
         try:
             return await get_anime_metadata(anime_name)
+        except json.JSONDecodeError as e:
+            raise PackGenerationError(anime_name=anime_name, code=-3, message="Invalid response from AnimeThemes API") from e
         except (AnimeThemesInvalidResponse, AnimeThemesThrottleError, AnimeThemesDown) as e:
-            raise PackGenerationError(f"Failed to fetch anime metadata") from e
+            logger.error(f"AnimeThemes API error for '{anime_name}': {str(e)}")
+            raise PackGenerationError(anime_name=anime_name, code=-2, message="Failed to fetch anime metadata") from e
     
     async def _search_beatmapsets(
         self,
@@ -134,13 +152,14 @@ class PackGenerator:
             PackGenerationError: If search fails
         """
         try:
-            if mode is not None:
-                beatmapsets = await search_beatmapsets(anime_title)
-            else:
-                beatmapsets = await search_beatmapsets(anime_title)
+            beatmapsets = await search_beatmapsets(anime_title)
+            if not beatmapsets:
+                raise PackGenerationError(anime_name=anime_title, code=0, message="No beatmapsets found")
             return beatmapsets
-        except RequestError as e: # httpx.RequestError
-            raise PackGenerationError(f"Failed to search beatmapsets: {str(e)}")
+        except PackGenerationError:
+            raise
+        except Exception as e:
+            raise PackGenerationError(anime_name=anime_title, message=f"Failed to search beatmapsets: {str(e)}", code=-1) from e
     
     def _extract_beatmapset_ids(self, beatmapsets: List[Beatmapset]) -> List[int]:
         """
@@ -206,38 +225,38 @@ class PackGenerator:
         """
         return f"{anime_title} - Beatmap Pack"
     
-    def generate_packs_batch(
-        self,
-        anime_names: List[str],
-        status: List[int] = [1],
-        mode: List[int] = [0]
-    ) -> List[Pack]:
-        """
-        Generate multiple packs from a list of anime names.
+    # def generate_packs_batch(
+    #     self,
+    #     anime_names: List[str],
+    #     status: List[int] = [1],
+    #     mode: List[int] = [0]
+    # ) -> List[Pack]:
+    #     """
+    #     Generate multiple packs from a list of anime names.
         
-        Args:
-            anime_names: List of anime names
-            status: Beatmap status filter
-            mode: Game mode filter
+    #     Args:
+    #         anime_names: List of anime names
+    #         status: Beatmap status filter
+    #         mode: Game mode filter
         
-        Returns:
-            List[Pack]: List of successfully generated packs
-        """
-        packs = []
-        failed = []
+    #     Returns:
+    #         List[Pack]: List of successfully generated packs
+    #     """
+    #     packs = []
+    #     failed = []
         
-        for anime_name in anime_names:
-            try:
-                pack = self.generate_pack_from_anime(anime_name, status, mode)
-                packs.append(pack)
-            except PackGenerationError as e:
-                logger.error(f"Failed to generate pack for {anime_name}: {str(e)}")
-                failed.append(anime_name)
+    #     for anime_name in anime_names:
+    #         try:
+    #             pack = self.generate_pack_from_anime(anime_name, status, mode)
+    #             packs.append(pack)
+    #         except PackGenerationError as e:
+    #             logger.error(f"Failed to generate pack for {anime_name}: {str(e)}")
+    #             failed.append(anime_name)
         
-        if failed:
-            logger.warning(f"Failed to generate packs for: {', '.join(failed)}")
+    #     if failed:
+    #         logger.warning(f"Failed to generate packs for: {', '.join(failed)}")
         
-        logger.info(f"Successfully generated {len(packs)} out of {len(anime_names)} packs")
-        return packs
+    #     logger.info(f"Successfully generated {len(packs)} out of {len(anime_names)} packs")
+    #     return packs
 
 pack_generator = PackGenerator()
