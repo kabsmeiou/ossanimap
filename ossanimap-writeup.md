@@ -71,6 +71,7 @@ Obviously, it's important to consider the system features when creating this sch
 2. I want the users to be able to request the creation of packs based on an anime they input
 3. I want to be able to count the downloads of a pack
 4. I want the pack to show some information about the anime
+
 From these, I can easily figure out what I need: a list of beatmap ids, the anime title of the pack, download count, and some additional anime-related metadata. Along with some extra fields like dates and for future updates, the schema below is what I created:
 
 ```python
