@@ -98,7 +98,27 @@ With the schema finished I went on to implement the logic.
 
 <!-- to insert some diagram/chart here for the processes -->
 
-To get started with the implementation, I first dealt with the easier ones. That is, the function for fetching anime metadata from *animethemes* and the function for searching for beatmaps with chimu.moe. These were fairly easy, it was harder to figure out the parameters I can use for chimu.moe because it wasn't in the documentation. I had to join the discord server to see how other people queried. Aside from this, it was a swift phase for the MVP. I needed only a search_beatmapset() and a get_anime_metadata(). Later on however, I faced an several issues related to these external API calls. First, they can be slow! It can be client-side network problems, the server of the API, and many more but they can be slow and that is a problem because it can block other processes if we keep waiting for the API response. I addressed this with async setups and I talked about it [below](#task-5-using-async). The other problem is **consistency**. Since users can request for packs, they can type in the anime title and perform the backend processes to fetch metadata and search for beatmapsets. But that would only work if the anime title is correct in the first place. Both in spelling, and the actual anime they're referring to. Doing manual reconciliation with some algorithm is too much so to work with this, I decided to sacrifice some response time by using the *animethemes* search api! The idea is that when clients types in their anime, I can send a request for search in the backend and the server returns the *top_k* results for the users to choose from. This way. I don't need to worry about typos and animes that doesn't exist. But at the cost of extra latency(the request)! To make up for it, I removed the process of fetching the metadata and instead sends it from the client, making use of the fact that it was already fetched with the search function.
+To get started with the implementation, I first dealt with the easier ones. That is, the function for fetching anime metadata from *animethemes* and the function for searching for beatmaps with chimu.moe. 
+
+These were fairly easy, it was harder to figure out the parameters I can use for chimu.moe because it wasn't in the documentation. I had to join the discord server to see how other people queried. Aside from this, it was a swift phase for the MVP. I needed only a search_beatmapset() and a get_anime_metadata(). Later on however, I faced an several issues related to these external API calls. 
+
+First, they can be slow! It can be client-side network problems, the server of the API, and many more but they can be slow and that is a problem because it can block other processes if we keep waiting for the API response. I addressed this with async setups and I talked about it [below](#task-5-using-async). The other problem is **consistency**. Since users can request for packs, they can type in the anime title and perform the backend processes to fetch metadata and search for beatmapsets. But that would only work if the anime title is correct in the first place. Both in spelling, and the actual anime they're referring to. Doing manual reconciliation with some algorithm is too much so to work with this, I decided to sacrifice some response time by using the *animethemes* search api! 
+
+```python
+    # step 1 is to fetch anime metadata but the creation process
+    # already obtains the needed info so we just pass it directly
+    # from the client
+    beatmapsets = await self._search_beatmapsets(anime.name, status, mode)
+    beatmapset_ids = self._extract_beatmapset_ids(beatmapsets)
+    pack: PackCreate = self._create_pack(
+        anime=anime,
+        beatmapset_ids=beatmapset_ids,
+        mode=mode,
+        status=status,
+    )
+```
+
+The idea is that when clients types in their anime, I can send a request for search in the backend and the server returns the *top_k* results for the users to choose from. This way. I don't need to worry about typos and animes that doesn't exist. But at the cost of extra latency(the request)! To make up for it, I removed the process of fetching the metadata and instead sends it from the client, making use of the fact that it was already fetched with the search function.
 
 ### Task 3: Implementing the routes
 
