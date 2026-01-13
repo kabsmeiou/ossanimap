@@ -25,8 +25,6 @@ class Availability(BaseModel):
     download_disabled: bool = Field(..., description="download_disabled")
     more_information: Optional[str] = Field(None, description="more information about availability")
 
-# TODO. id is the same as osu! so we can just fetch from osu! api
-# for fresher data. chimu.moe can then handle downloading
 class Beatmapset(BaseModel):
     id: int = Field(..., description="beatmapset id")
     artist: str = Field(..., description="artist")
