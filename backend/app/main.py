@@ -1,7 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+import logging
 
 from app.api.routes import packs, anime, stats
+
+logger = logging.getLogger("uvicorn.error")
 
 # TODO. fix logs
 # TODO. caching for external api calls
@@ -14,7 +17,7 @@ app = FastAPI(
 
 origins = [
     "http://localhost",
-    "http://localhost:5173",
+    "http://localhost:5174",
     "https://ossanimap-cvcabral-adnueduphs-projects.vercel.app",
     "https://ossanimap.vercel.app"
 ]
@@ -36,6 +39,7 @@ from app.services.pack_generator import PackGenerationError
 
 @app.exception_handler(PackGenerationError)
 async def pack_generation_error_handler(request, exc: PackGenerationError):
+    logger.error(f"Pack generation error: {exc}")
     return JSONResponse(
         status_code=400,  # or map based on exc.code
         content={

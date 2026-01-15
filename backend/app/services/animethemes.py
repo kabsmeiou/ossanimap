@@ -103,6 +103,24 @@ async def fetch_anime_image_link(anime_title: str) -> str | None:
         return image_link
     return None
 
+async def fetch_anime_songs(anime_title: str) -> list[str]:
+    formatted_title = format_anime_title_for_animethemes(anime_title)
+    params = {
+        "include": "animethemes.song"
+    }
+    url = f"{ANIMETHEMES_URL.rstrip('/')}/anime/{formatted_title}"
+    data = await _send_query(url, params=params)
+    anime = data.get("anime", {})
+    songs = anime.get("animethemes", [])
+    song_titles = [
+        s["song"]["title"].lower()
+        for s in songs
+        if isinstance(s.get("song"), dict) and "title" in s["song"]
+    ]
+    logger.info("Fetched %d songs for anime '%s'", len(song_titles), anime_title)
+    return song_titles
+
+
 async def search_anime_by_name(anime_name: str) -> list[AnimeSearchResult]:
     url = f"{ANIMETHEMES_URL.rstrip('/')}/anime"
     params = {
