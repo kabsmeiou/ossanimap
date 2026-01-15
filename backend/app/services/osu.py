@@ -3,6 +3,8 @@ import os
 from dotenv import load_dotenv
 import logging
 
+from app.utils.format import format_anime_title_for_animethemes
+from .animethemes import fetch_anime_songs
 from app.schemas.osu import Beatmapset, BeatmapsetSearchMode
 
 load_dotenv()
@@ -32,9 +34,38 @@ async def fetch_beatmapset(beatmapset_id: int) -> Beatmapset:
     logger.info(f"Fetched beatmapset: {beatmapset}")
     return beatmapset
 
-# TODO. handle issue with not getting all intended results due to title variations
-# animethemes contain the full title while tags in osu! may be shortened or have slight differences
-async def search_beatmapsets(keyword: str) -> list[Beatmapset]:
+
+def generate_search_keywords(anime_title: str) -> list[str]:
+    keywords = [anime_title]
+    special_chars = {":", "-", "–", "|", "/", "\\", ";"}
+
+    running_title = ""
+    for i, cur in enumerate(anime_title):
+        if cur in special_chars and ((i > 0 and anime_title[i-1] == " ") or (i + 1 < len(anime_title) and anime_title[i+1] == " ")):
+            if running_title:
+                keywords.append(running_title.strip())
+                running_title = ""
+        else:
+            running_title += cur
+
+    if running_title and running_title.strip() not in keywords:
+        keywords.append(running_title.strip())
+
+    final_keywords = keywords
+    for kw in keywords:
+        cur_kw = kw
+        has_changed = False
+        for char in special_chars:
+            if char in cur_kw:
+                cur_kw = cur_kw.replace(char, " ")
+                has_changed = True
+        if has_changed:
+            final_keywords.append(cur_kw.strip())
+
+    return final_keywords
+
+
+async def search_beatmapsets(keyword: str, source: str | None = None) -> list[Beatmapset]:
     """
     Search for beatmapsets on osu! API via Ossapi.
 
@@ -44,9 +75,9 @@ async def search_beatmapsets(keyword: str) -> list[Beatmapset]:
         List of matching BeatmapsetOSU objects
     """
     try:
-        keyword = f'"{keyword}"'
+        keyword = f'"{keyword}"' if source is None else f'source=""{source}""'
         results = await api.search_beatmapsets(query=keyword, mode=BeatmapsetSearchMode.STANDARD.value)
-        # get the beatmapsets from the results
+        # get the beatmapsets from the results, ensure the beatmapset has sources
         beatmapsets: list[Beatmapset] = [
             Beatmapset.model_validate(bm, from_attributes=True)
             for bm in results.beatmapsets
@@ -55,3 +86,42 @@ async def search_beatmapsets(keyword: str) -> list[Beatmapset]:
         logger.error(f"Error searching beatmapsets with keyword '{keyword}': {str(e)}")
         raise Exception(f"Failed to search beatmapsets with keyword '{keyword}'") from e
     return beatmapsets
+
+def check_if_beatmapset_matches_song(bm: Beatmapset, song_list: list[str]) -> bool:
+    # remove part with () in osu! title
+    beatmap_title = bm.title.lower()
+    if "(" in beatmap_title and ")" in beatmap_title:
+        beatmap_title = beatmap_title[:beatmap_title.index("(")].strip()
+    beatmap_title_unicode = bm.title_unicode.lower() if bm.title_unicode else ""
+    return beatmap_title in song_list or beatmap_title_unicode in song_list
+
+async def handle_beatmapset_search(
+    anime_title: str,
+) -> list[int]:
+    """
+    Handle beatmapset search using generated keywords.
+
+    Args:
+        anime_title: The anime title to search for
+    Returns:
+        List of unique beatmapset IDs
+    """
+    formatted_title = format_anime_title_for_animethemes(anime_title)
+    song_list = await fetch_anime_songs(formatted_title)
+    unique_beatmapsets = set()
+    keywords = generate_search_keywords(anime_title)
+    sources = set()
+    for keyword in keywords:
+        beatmapsets = await search_beatmapsets(keyword)
+        for bm in beatmapsets:
+            if bm.source and check_if_beatmapset_matches_song(bm, song_list):
+                unique_beatmapsets.add(bm.id)
+                sources.add(bm.source)
+    # search using source as well
+    for source in sources:
+        beatmapsets = await search_beatmapsets(anime_title, source=source)
+        for bm in beatmapsets:
+            if check_if_beatmapset_matches_song(bm, song_list):
+                unique_beatmapsets.add(bm.id)
+    beatmapset_ids = list(unique_beatmapsets)
+    return beatmapset_ids

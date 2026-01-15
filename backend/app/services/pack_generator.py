@@ -9,7 +9,7 @@ from app.schemas.anime import Anime
 from app.schemas.osu import Beatmapset
 from app.schemas.pack import Pack, PackCreate
 from app.services.animethemes import get_anime_metadata, AnimeThemesInvalidResponse, AnimeThemesThrottleError, AnimeThemesDown
-from app.services.osu import search_beatmapsets
+from app.services.osu import handle_beatmapset_search
 from app.db.services import save_pack
 from app.utils.format import packdb_to_packschema
 
@@ -74,15 +74,9 @@ class PackGenerator:
             # already obtains the needed info so we just pass it directly
             # from the client
             # Step 2: Search for beatmapsets
-            beatmapsets = await self._search_beatmapsets(anime.name, status, mode)
+            beatmapset_ids = await self._search_beatmapsets(anime.name)
 
-            # Step 3: Extract beatmapset IDs
-            # TODO. if multiple beatmaps have the same songs, only keep the
-            # most favourited one(?) or have an option to keep only that or
-            # most played set
-            beatmapset_ids = self._extract_beatmapset_ids(beatmapsets)
-            
-            # Step 4: Create Pack object
+            # Step 3: Create Pack object
             pack: PackCreate = self._create_pack(
                 anime=anime,
                 beatmapset_ids=beatmapset_ids,
@@ -152,7 +146,7 @@ class PackGenerator:
             PackGenerationError: If search fails
         """
         try:
-            beatmapsets = await search_beatmapsets(anime_title)
+            beatmapsets = await handle_beatmapset_search(anime_title)
             if not beatmapsets:
                 raise PackGenerationError(anime_name=anime_title, code=0, message="No beatmapsets found")
             return beatmapsets
@@ -160,21 +154,6 @@ class PackGenerator:
             raise
         except Exception as e:
             raise PackGenerationError(anime_name=anime_title, message=f"Failed to search beatmapsets: {str(e)}", code=-1) from e
-    
-    def _extract_beatmapset_ids(self, beatmapsets: List[Beatmapset]) -> List[int]:
-        """
-        Extract unique beatmapset IDs from the list of beatmapsets.
-        
-        Args:
-            beatmapsets: List of Beatmapset objects
-        
-        Returns:
-            List[int]: List of unique beatmapset IDs
-        """
-        # Use set to ensure uniqueness, then convert back to sorted list
-        beatmapset_ids = list(set(beatmapset.id for beatmapset in beatmapsets))
-        beatmapset_ids.sort()
-        return beatmapset_ids
     
     def _create_pack(
         self,
