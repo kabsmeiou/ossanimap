@@ -6,12 +6,11 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.schemas.anime import Anime
 from app.schemas.osu import Beatmapset
-from app.schemas.pack import Pack, PackCreate
+from app.schemas.pack import PackCreate
 from app.services.animethemes import get_anime_metadata, AnimeThemesInvalidResponse, AnimeThemesThrottleError, AnimeThemesDown
 from app.services.osu import handle_beatmapset_search
 from app.db.session import AsyncSessionLocal
 from app.db.services import save_pack
-from app.utils.format import packdb_to_packschema
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -58,7 +57,6 @@ class PackGenerator:
         status_str = "".join(map(str, sorted(status)))
         mode_str = "".join(map(str, sorted(mode)))
         return f"{anime_id}-{status_str}-{mode_str}"
-
 
     async def generate_pack_from_anime(
         self,
