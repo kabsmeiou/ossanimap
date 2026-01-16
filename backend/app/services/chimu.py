@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 CHIMU_URL = "https://catboy.best/"
 
 
-async def check_chimu_api() -> bool:
+async def check_chimu_api() -> dict:
     """
     Test connection to chimu.moe mirror.
     
@@ -19,15 +19,16 @@ async def check_chimu_api() -> bool:
     """
     async with httpx.AsyncClient(base_url=CHIMU_URL, timeout=5.0) as client:
         try:
-            response = await client.get("/")
-            response.raise_for_status()
-            return True
+            response = await client.get("/api/ratelimits")
+            body = await response.aread()
+            resp = json.loads(body)
+            return resp
         except httpx.RequestError as e:
             logger.error(f"Chimu.moe connection test failed: {str(e)}")
-            return False
+            return {"limits": {}}
         except httpx.HTTPStatusError as e:
             logger.error(f"Chimu.moe returned error status: {str(e)}")
-            return False
+            return {"limits": {}}
 
 
 # status: 1 = ranked, 2 = loved, mode: 0 = osu!standard, 1 = taiko, 2 = catch, 3 = mania

@@ -140,9 +140,18 @@ export const api = {
      * @returns {Promise<Object>} Health status
      */
     check: () => request('/health/'),
-    check_chimu: () => request('/health/chimu'),
-    check_animethemes: () => request('/health/animethemes'),
-  }
+    checkChimu: () => request('/health/chimu'),
+    checkAnimethemes: () => request('/health/animethemes'),
+  },
+
+  job: {
+    /**
+     * Get job status by job ID
+     * @param {string} job_id - Job ID
+     * @returns {Promise<Object>} Job status
+     */
+    getStatus: (job_id) => request(`/job/${job_id}`),
+  },
 }
 
 export default api

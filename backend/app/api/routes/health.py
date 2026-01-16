@@ -27,10 +27,8 @@ async def chimu_health_check():
     """
     Health check endpoint to verify that the chimu.moe service is reachable.
     """
-    status = await check_chimu_api()
-    if not status:
-        return {"status": "-1"}
-    return {"status": "1"}
+    response = await check_chimu_api()
+    return response
 
 @router.get("/animethemes", status_code=status.HTTP_200_OK)
 async def animethemes_health_check():

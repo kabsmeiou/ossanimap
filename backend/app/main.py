@@ -5,7 +5,7 @@ import logging
 import uvicorn
 
 from app.services.pack_generator import PackGenerationError
-from app.api.routes import packs, anime, stats, health
+from app.api.routes import packs, anime, stats, health, job
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -38,6 +38,7 @@ app.include_router(packs.router)
 app.include_router(anime.router)
 app.include_router(stats.router)
 app.include_router(health.router)
+app.include_router(job.router)
 
 @app.exception_handler(PackGenerationError)
 async def pack_generation_error_handler(request, exc: PackGenerationError):
