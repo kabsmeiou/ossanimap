@@ -10,7 +10,7 @@ async def create_anime_schema(
     name: str,
     slug: str,
     synopsis: Optional[str] = None,
-) -> Anime:
+) -> Optional[Anime]:
     """
     Create an Anime schema instance.
 
@@ -28,7 +28,8 @@ async def create_anime_schema(
         image_link = await fetch_anime_image_link(name)
     except Exception as e:
         logger.info(f"Failed to fetch anime image link for {name}: {str(e)}")
-        raise RuntimeError("Failed to fetch anime image link") from e
+        return None
+        # raise RuntimeError("Failed to fetch anime image link") from e
     return Anime(
         id=id,
         name=name,

@@ -27,27 +27,6 @@ class Anime(BaseModel):
 ```
 
 ```python
-class BeatmapsetSearchMode(enum.Enum):
-    ANY: int = -1
-    STANDARD: int = 0
-    TAIKO: int = 1
-    CATCH: int = 2
-    MANIA: int = 3
-
-class Beatmap(BaseModel):
-    beatmapset_id: int = Field(..., description="beatmapset_id")
-    difficulty_rating: float = Field(..., description="difficulty_rating")
-    id: int = Field(..., description="id")
-    mode: Union[int, str] = Field(..., description="mode")
-    mode_int: int = Field(..., description="osu game mode")
-    status: str = Field(..., description="status of the beatmap")
-    total_length: int = Field(..., description="total length of the beatmap in seconds")
-    url: str = Field(..., description="URL to the beatmap")
-
-class Availability(BaseModel):
-    download_disabled: bool = Field(..., description="download_disabled")
-    more_information: Optional[str] = Field(None, description="more information about availability")
-
 class Beatmapset(BaseModel):
     id: int = Field(..., description="beatmapset id")
     artist: str = Field(..., description="artist")

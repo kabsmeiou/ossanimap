@@ -1,4 +1,4 @@
-from sqlalchemy import ARRAY, JSON, ForeignKey, String, Integer, Text, func
+from sqlalchemy import JSON, ForeignKey, String, Integer, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import List, Optional
 from datetime import datetime
@@ -28,6 +28,11 @@ class PackDB(Base):
 
     # relationship
     anime: Mapped[AnimeDB] = relationship(back_populates="packs", lazy="joined")
+
+    # packs should be unique per anime, mode, and status combination
+    __table_args__ = (
+        UniqueConstraint("anime_id", "mode", "status", name="uix_anime_mode_status"),
+    )
 
     @property
     def beatmapset_count(self) -> int:

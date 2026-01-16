@@ -2,14 +2,14 @@ import json
 from typing import List
 import logging
 from sqlalchemy.exc import SQLAlchemyError
-from httpx import RequestError
-from sqlalchemy.ext.asyncio import AsyncSession
+
 
 from app.schemas.anime import Anime
 from app.schemas.osu import Beatmapset
 from app.schemas.pack import Pack, PackCreate
 from app.services.animethemes import get_anime_metadata, AnimeThemesInvalidResponse, AnimeThemesThrottleError, AnimeThemesDown
 from app.services.osu import handle_beatmapset_search
+from app.db.session import AsyncSessionLocal
 from app.db.services import save_pack
 from app.utils.format import packdb_to_packschema
 
@@ -50,11 +50,10 @@ class PackGenerator:
     """
     async def generate_pack_from_anime(
         self,
-        session: AsyncSession,
         anime: Anime,
         status: List[int] = [1],
         mode: List[int] = [0],
-    ) -> Pack:
+    ):
         """
         Orchestrator for generating a beatmap pack for a given anime name.
         
@@ -62,9 +61,6 @@ class PackGenerator:
             anime_name: The name of the anime (e.g., "Bakemonogatari", "Steins;Gate")
             status: Beatmap status filter (1=ranked)
             mode: Game mode filter (-1=all, 0=standard)
-        
-        Returns:
-            Pack: A Pack object containing anime info and beatmapset IDs
         
         Raises:
             PackGenerationError: If pack generation fails at any stage
@@ -86,17 +82,16 @@ class PackGenerator:
             
             # save to databse after successful creation then convert to schema
             try:
-                p = await save_pack(session, anime, pack)
-                await session.commit()
-                # calls refresh on the pack_db object
-                # this is to reload and get database generated fields and etc.
-                await session.refresh(p)
+                async with AsyncSessionLocal() as session:
+                    p = await save_pack(session, anime, pack)
+                    await session.commit()
+                    # calls refresh on the pack_db object
+                    # this is to reload and get database generated fields and etc.
+                    await session.refresh(p)
             except SQLAlchemyError as e:
                 await session.rollback()
                 logger.error(f"Database save error for pack {pack.name}: {str(e)}")
                 raise PackGenerationError(anime_name=anime.name, code=-4, message="Database save error") from e
-            p_schema = packdb_to_packschema(p)
-            return p_schema
         except PackGenerationError:
             raise
         except Exception as e:

@@ -5,10 +5,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.services import list_packs as list_packs_from_db, delete_pack as delete_pack_from_db, increment_pack_downloads, get_pack_by_id
 from app.schemas.pack import Pack, PackCreateRequest, PackResponse
-from app.services.pack_generator import pack_generator, PackGenerationError
+from app.redis.job import generate_pack_job
 from app.utils.format import packdb_to_packschema
 from app.db.session import get_session
 from app.utils.helpers import create_anime_schema
+from app.redis.queue import pack_creation_queue
+from app.utils.dummies import create_dummy_anime
 
 router = APIRouter(
     prefix="/packs",
@@ -17,8 +19,11 @@ router = APIRouter(
 
 logger = logging.getLogger("uvicorn.error")
 
+
+# TODO. queue the pack generation request
+# this is to avoid multiple requests for the same anime at the same time and to improve response time of the endpoint
 @router.post("/", response_model=PackResponse, status_code=status.HTTP_201_CREATED)
-async def create_pack(request: PackCreateRequest, session: AsyncSession = Depends(get_session)):
+async def create_pack(request: PackCreateRequest):
     """
     Create a new beatmap pack from an anime name.
     
@@ -39,16 +44,21 @@ async def create_pack(request: PackCreateRequest, session: AsyncSession = Depend
         slug=request.anime.slug,
         synopsis=request.anime.synopsis,
     )
-    pack = await pack_generator.generate_pack_from_anime(
-        session=session,
-        anime=anime_schema,
+    # queue the pack generation task
+    pack_creation_queue.enqueue(
+        generate_pack_job,
+        job_id="some_unique_job_id",
+        anime_id=anime_schema.id,
+        anime_name=anime_schema.name,
+        anime_slug=anime_schema.slug,
+        anime_synopsis=anime_schema.synopsis,
+        anime_image_url=anime_schema.image_link,
         status=request.status,
         mode=request.mode
     )
     return PackResponse(
         success=True,
-        message=f"Pack created successfully for {request.anime.name}",
-        pack=pack
+        message=f"Pack for {request.anime.name} is being generated",
     )
 
 @router.get("/", response_model=List[Pack])

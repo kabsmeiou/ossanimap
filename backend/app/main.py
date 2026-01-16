@@ -1,7 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 import logging
+import uvicorn
 
+from app.services.pack_generator import PackGenerationError
 from app.api.routes import packs, anime, stats
 
 logger = logging.getLogger("uvicorn.error")
@@ -34,9 +37,6 @@ app.include_router(packs.router)
 app.include_router(anime.router)
 app.include_router(stats.router)
 
-from fastapi.responses import JSONResponse
-from app.services.pack_generator import PackGenerationError
-
 @app.exception_handler(PackGenerationError)
 async def pack_generation_error_handler(request, exc: PackGenerationError):
     logger.error(f"Pack generation error: {exc}")
@@ -49,3 +49,6 @@ async def pack_generation_error_handler(request, exc: PackGenerationError):
             "anime": exc.anime_name,
         },
     )
+
+if __name__ == "__main__":
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
