@@ -9,6 +9,27 @@ logger = logging.getLogger(__name__)
 
 CHIMU_URL = "https://catboy.best/"
 
+
+async def check_chimu_api() -> bool:
+    """
+    Test connection to chimu.moe mirror.
+    
+    Returns:
+        bool: True if connection is successful, False otherwise
+    """
+    async with httpx.AsyncClient(base_url=CHIMU_URL, timeout=5.0) as client:
+        try:
+            response = await client.get("/")
+            response.raise_for_status()
+            return True
+        except httpx.RequestError as e:
+            logger.error(f"Chimu.moe connection test failed: {str(e)}")
+            return False
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Chimu.moe returned error status: {str(e)}")
+            return False
+
+
 # status: 1 = ranked, 2 = loved, mode: 0 = osu!standard, 1 = taiko, 2 = catch, 3 = mania
 async def search_for_beatmaps(
     keyword: str, 

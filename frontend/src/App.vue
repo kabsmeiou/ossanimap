@@ -24,6 +24,11 @@ const rateLimitInfo = ref(null)
 const showRateLimitWarning = ref(false)
 const rateLimitError = ref(false) // Track if rate limit fetch failed
 
+// server/api states
+const loadingHealth = ref(false)
+const chimuHealthy = ref(true)
+const animethemesHealthy = ref(true)
+
 
 // Fetch rate limits
 const fetchRateLimits = async () => {
@@ -151,13 +156,43 @@ const handleClickOutside = (event) => {
   }
 }
 
+const checkHealth = async () => {
+  loadingHealth.value = true
+  try {
+    const healthStatus = await api.health.check_chimu()
+    if (healthStatus.status === '-1') {
+      rateLimitError.value = true
+    } else {
+      rateLimitError.value = false
+      // Fetch rate limits if service is healthy
+      fetchRateLimits()
+    }
+  } catch (err) {
+    console.error('Health check failed:', err)
+    rateLimitError.value = true
+    chimuHealthy.value = false
+  }
+  try {
+    const animethemesStatus = await api.health.check_animethemes()
+    if (animethemesStatus.status === 'healthy') {
+      animethemesHealthy.value = true
+    } else {
+      animethemesHealthy.value = false
+    }
+  } catch (err) {
+    console.error('Animethemes health check failed:', err)
+    animethemesHealthy.value = false
+  }
+  loadingHealth.value = false
+}
+
 // Watch query changes for debounced search
 watch(query, () => {
   debouncedSearch()
 })
 
 onMounted(() => {
-  fetchRateLimits()
+  checkHealth()
   fetchPacks()
   document.addEventListener('click', handleClickOutside)
 })
@@ -170,7 +205,6 @@ onUnmounted(() => {
     clearTimeout(searchDebounceTimer)
   }
 })
-
 
 // Fetch packs from the backend
 const fetchPacks = async () => {
@@ -221,7 +255,7 @@ const filtered = computed(() => {
 
         <div class="controls">
           <div class="search-container" ref="searchInput">
-            <div class="search-box" :class="{ 'disabled': rateLimitError }">
+            <div class="search-box" :class="{ 'disabled': chimuHealthy === false || animethemesHealthy === false  || loadingHealth }">
               <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="11" cy="11" r="8"></circle>
                 <path d="m21 21-4.35-4.35"></path>
@@ -231,7 +265,7 @@ const filtered = computed(() => {
                 @keypress="handleSearchKeyPress"
                 placeholder="Search or create packs here..." 
                 aria-label="search"
-                :disabled="rateLimitError"
+                :disabled="chimuHealthy === false || animethemesHealthy === false || loadingHealth"
               />
             </div>
 
@@ -284,9 +318,19 @@ const filtered = computed(() => {
           </div>
         </div>
       </header>
+      <!-- loading health check banner -->
+      <div v-if="loadingHealth" class="rate-limit-banner">
+        <div class="banner-content">
+          <div class="banner-text">
+            <span>
+              Checking service health...
+            </span>
+          </div>
+        </div>
+      </div>
 
       <!-- chimu.moe Unreachable Warning Banner -->
-      <div v-if="rateLimitError" class="rate-limit-banner error-banner">
+      <div v-if="chimuHealthy === false && animethemesHealthy" class="rate-limit-banner error-banner">
         <div class="banner-content">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="10"></circle>
@@ -297,6 +341,38 @@ const filtered = computed(() => {
             <strong>(｡•́ㅁ•̀｡) Service Unavailable:</strong>
             <span>
               chimu.moe is currently unreachable. Downloads and search requests are temporarily disabled.
+            </span>
+          </div>
+        </div>
+      </div>
+      <!-- animethemes API Unreachable Warning Banner -->
+      <div v-if="animethemesHealthy === false && chimuHealthy" class="rate-limit-banner error-banner">
+        <div class="banner-content">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+          <div class="banner-text">
+            <strong>(｡•́ㅁ•̀｡) Service Unavailable:</strong>
+            <span>
+              animethemes API is currently unreachable. Downloads are allowed but new packs cannot be requested.
+            </span>
+          </div>
+        </div>
+      </div>
+      <!-- if both chimu and animethemes are unhealthy -->
+      <div v-if="chimuHealthy === false && animethemesHealthy === false" class="rate-limit-banner error-banner">
+        <div class="banner-content">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+          <div class="banner-text">
+            <strong>(｡•́ㅁ•̀｡) Services Unavailable:</strong>
+            <span>
+              Both chimu.moe and animethemes API are currently unreachable. Downloads and new pack requests are disabled.
             </span>
           </div>
         </div>
@@ -324,8 +400,8 @@ const filtered = computed(() => {
       </div>
 
       <main>
+        <!-- TODO. fetch the sort from server as a reqst, use pagination -->
         <div class="results-header">
-          <h2>{{ filtered.length }} Pack{{ filtered.length !== 1 ? 's' : '' }}</h2>
           <div class="sort-labels">
             <span @click="sortBy = 'title'" :class="{ active: sortBy === 'title' }">Title</span>
             <span class="divider">·</span>
@@ -364,7 +440,7 @@ const filtered = computed(() => {
             v-for="pack in filtered" 
             :key="pack.id" 
             :pack="pack" 
-            :disabled="rateLimitError" 
+            :disabled="chimuHealthy === false" 
           />
         </section>
       </main>

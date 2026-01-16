@@ -130,3 +130,19 @@ async def search_anime_by_name(anime_name: str) -> list[AnimeSearchResult]:
     data = await _send_query(url, params=params)
     anime_list = data.get("anime", [])
     return [AnimeSearchResult(**anime) for anime in anime_list]
+
+
+async def check_animethemes_api() -> bool:
+    """
+    Test connection to AnimeThemes API.
+    
+    Returns:
+        bool: True if connection is successful, False otherwise
+    """
+    test_url = f"{ANIMETHEMES_URL.rstrip('/')}/anime"
+    try:
+        await _send_query(test_url)
+        return True
+    except Exception as e:
+        logger.error(f"AnimeThemes API connection test failed: {str(e)}")
+        return False
