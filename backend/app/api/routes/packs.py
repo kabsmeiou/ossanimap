@@ -2,7 +2,6 @@ from typing import List
 from fastapi import APIRouter, HTTPException, status, Depends
 import logging
 from sqlalchemy.ext.asyncio import AsyncSession
-import uuid
 
 from app.db.services import list_packs as list_packs_from_db, delete_pack as delete_pack_from_db, increment_pack_downloads, get_pack_by_id
 from app.schemas.pack import Pack, PackCreateRequest, PackResponse
@@ -11,6 +10,8 @@ from app.utils.format import packdb_to_packschema
 from app.db.session import get_session
 from app.utils.helpers import create_anime_schema
 from app.redis.queue import pack_creation_queue
+from app.services.pack_generator import pack_generator
+from app.redis.utils import fetch_job_instance
 
 
 router = APIRouter(
@@ -47,8 +48,18 @@ async def create_pack(request: PackCreateRequest):
         slug=request.anime.slug,
         synopsis=request.anime.synopsis,
     )
-    job_id = str(uuid.uuid4())
-    # queue the pack generation task
+    job_id = pack_generator.create_job_id(
+        anime_id=anime_schema.id,
+        status=request.status,
+        mode=request.mode
+    )
+    # if a job with the same id is already in the queue or being processed, return its job id
+    if fetch_job_instance(job_id):
+        return PackResponse(
+            success=True,
+            message=f"Pack for {request.anime.name} is already being generated",
+            job_id=job_id
+        )
     pack_creation_queue.enqueue(
         generate_pack_job,
         job_id=job_id,
