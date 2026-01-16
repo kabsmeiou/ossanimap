@@ -48,6 +48,18 @@ class PackGenerator:
     3. Filter and collect beatmapset IDs
     4. Create Pack object with metadata
     """
+    def create_job_id(
+        self, 
+        anime_id: int, status: List[int], mode: List[int]
+    ) -> str:
+        """
+        Create unique job id depending on anime id, status and mode filters.
+        """
+        status_str = "".join(map(str, sorted(status)))
+        mode_str = "".join(map(str, sorted(mode)))
+        return f"{anime_id}-{status_str}-{mode_str}"
+
+
     async def generate_pack_from_anime(
         self,
         anime: Anime,
