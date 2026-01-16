@@ -133,6 +133,16 @@ export const api = {
      */
     search: (query) => request(`/anime/search?anime_name=${encodeURIComponent(query)}`),
   },
+
+  health: {
+    /**
+     * Check health status of external services
+     * @returns {Promise<Object>} Health status
+     */
+    check: () => request('/health/'),
+    check_chimu: () => request('/health/chimu'),
+    check_animethemes: () => request('/health/animethemes'),
+  }
 }
 
 export default api

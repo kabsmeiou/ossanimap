@@ -5,7 +5,7 @@ import logging
 import uvicorn
 
 from app.services.pack_generator import PackGenerationError
-from app.api.routes import packs, anime, stats
+from app.api.routes import packs, anime, stats, health
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -21,6 +21,7 @@ app = FastAPI(
 origins = [
     "http://localhost",
     "http://localhost:5174",
+    "http://localhost:5173",
     "https://ossanimap-cvcabral-adnueduphs-projects.vercel.app",
     "https://ossanimap.vercel.app"
 ]
@@ -36,6 +37,7 @@ app.add_middleware(
 app.include_router(packs.router)
 app.include_router(anime.router)
 app.include_router(stats.router)
+app.include_router(health.router)
 
 @app.exception_handler(PackGenerationError)
 async def pack_generation_error_handler(request, exc: PackGenerationError):
