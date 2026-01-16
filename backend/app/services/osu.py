@@ -2,6 +2,7 @@ from ossapi import OssapiAsync
 import os
 from dotenv import load_dotenv
 import logging
+import asyncio
 
 from app.utils.format import format_anime_title_for_animethemes
 from .animethemes import fetch_anime_songs
@@ -111,15 +112,24 @@ async def handle_beatmapset_search(
     unique_beatmapsets = set()
     keywords = generate_search_keywords(anime_title)
     sources = set()
+
+    search_calls = [] # create coroutine list for concurrent searching, then await them all at once
     for keyword in keywords:
-        beatmapsets = await search_beatmapsets(keyword)
+        search_calls.append(search_beatmapsets(keyword))
+    
+    beatmapsets_list = await asyncio.gather(*search_calls)
+    for beatmapsets in beatmapsets_list:
         for bm in beatmapsets:
             if bm.source and check_if_beatmapset_matches_song(bm, song_list):
                 unique_beatmapsets.add(bm.id)
                 sources.add(bm.source)
-    # search using source as well
+
+    search_calls = []
     for source in sources:
-        beatmapsets = await search_beatmapsets(anime_title, source=source)
+        search_calls.append(search_beatmapsets(anime_title, source=source))
+    
+    beatmapsets_list = await asyncio.gather(*search_calls)
+    for beatmapsets in beatmapsets_list:
         for bm in beatmapsets:
             if check_if_beatmapset_matches_song(bm, song_list):
                 unique_beatmapsets.add(bm.id)
