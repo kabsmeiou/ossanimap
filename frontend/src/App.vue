@@ -25,12 +25,12 @@ const showRateLimitWarning = ref(false)
 const rateLimitError = ref(false) // Track if rate limit fetch failed
 
 // server/api states
-const loadingHealth = ref(false)
+const loadingChimu = ref(true)
+const loadingAnimethemes = ref(true)
 const chimuHealthy = ref(true)
 const animethemesHealthy = ref(true)
 
 
-// Fetch rate limits
 const fetchRateLimits = async () => {
   try {
     const response = await fetch('https://catboy.best/api/ratelimits', {
@@ -50,15 +50,17 @@ const fetchRateLimits = async () => {
     showRateLimitWarning.value = percentRemaining <= 20 || remaining === 0
   } catch (err) {
     console.error('Failed to fetch rate limits:', err)
+    chimuHealthy.value = false 
     rateLimitError.value = true // Set error state
     rateLimitInfo.value = null
     showRateLimitWarning.value = false
   }
+  loadingChimu.value = false
 }
 
 // Handle Enter key press to trigger search
 const handleSearchKeyPress = async (event) => {
-  if (rateLimitError.value) {
+  if (rateLimitError.value || chimuHealthy.value === false || animethemesHealthy.value === false) {
     return; // Prevent search when service is unreachable
   }
   
@@ -119,6 +121,36 @@ const fetchSearchSuggestions = async (searchQuery) => {
   }
 }
 
+const currentJobAnimeName = ref('')
+const currentJobStatus = ref('')
+
+const removeStatusInterval = () => {
+  const interval = setInterval(() => {
+    currentJobStatus.value = ''
+    currentJobAnimeName.value = ''
+    clearInterval(interval)
+  }, 5000); // remove status after 5 seconds
+}
+
+const pollJobStatus = async (jobId) => {
+  const interval = setInterval(async () => {
+    try {
+      const data = await api.job.getStatus(jobId)
+      if (data.status === 'finished' || data.status === 'failed') {
+        clearInterval(interval)
+        fetchPacks() // Refresh packs list when job is done
+        removeStatusInterval()
+      }
+      currentJobStatus.value = data.status
+    } catch (err) {
+      console.error('Failed to poll job status:', err)
+      clearInterval(interval)
+      currentJobStatus.value = ''
+      currentJobAnimeName.value = ''
+    }
+  }, 1000); // is it done yet
+}
+
 // Handle suggestion click
 // TODO. handle code returned by error from backend and show to user
 const handleSuggestionClick = async (suggestion) => {
@@ -136,14 +168,17 @@ const handleSuggestionClick = async (suggestion) => {
   }
 
   try {
-    await api.packs.create(data).then(() => {
-      fetchPacks()
-    })
+    currentJobStatus.value = 'queued'
+    currentJobAnimeName.value = suggestion.name
+    const response = await api.packs.create(data)
+    pollJobStatus(response.job_id)
     showSuggestions.value = false
     query.value = ''
   } catch (err) {
     console.error('Failed to submit request:', err)
     alert(err)
+    currentJobStatus.value = ''
+    currentJobAnimeName.value = ''
   } finally {
     requestingPackSlug.value = null
   }
@@ -157,24 +192,9 @@ const handleClickOutside = (event) => {
 }
 
 const checkHealth = async () => {
-  loadingHealth.value = true
   try {
-    const healthStatus = await api.health.check_chimu()
-    if (healthStatus.status === '-1') {
-      rateLimitError.value = true
-    } else {
-      rateLimitError.value = false
-      // Fetch rate limits if service is healthy
-      fetchRateLimits()
-    }
-  } catch (err) {
-    console.error('Health check failed:', err)
-    rateLimitError.value = true
-    chimuHealthy.value = false
-  }
-  try {
-    const animethemesStatus = await api.health.check_animethemes()
-    if (animethemesStatus.status === 'healthy') {
+    const animethemesStatus = await api.health.checkAnimethemes()
+    if (animethemesStatus.status === '1') {
       animethemesHealthy.value = true
     } else {
       animethemesHealthy.value = false
@@ -183,7 +203,7 @@ const checkHealth = async () => {
     console.error('Animethemes health check failed:', err)
     animethemesHealthy.value = false
   }
-  loadingHealth.value = false
+  loadingAnimethemes.value = false
 }
 
 // Watch query changes for debounced search
@@ -191,8 +211,14 @@ watch(query, () => {
   debouncedSearch()
 })
 
+let interval;
 onMounted(() => {
   checkHealth()
+  fetchRateLimits()
+  interval = setInterval(() => {
+    checkHealth()
+    fetchRateLimits()
+  }, 60000); // every 1 minute
   fetchPacks()
   document.addEventListener('click', handleClickOutside)
 })
@@ -232,8 +258,6 @@ const filtered = computed(() => {
       (p.synopsis && p.synopsis.toLowerCase().includes(q))
     )
   })
-  if (sortBy.value === 'downloads') list = list.slice().sort((a, b) => b.downloads - a.downloads)
-  if (sortBy.value === 'title') list = list.slice().sort((a, b) => a.name.localeCompare(b.name))
   return list
 })
 </script>
@@ -255,7 +279,7 @@ const filtered = computed(() => {
 
         <div class="controls">
           <div class="search-container" ref="searchInput">
-            <div class="search-box" :class="{ 'disabled': chimuHealthy === false || animethemesHealthy === false  || loadingHealth }">
+            <div class="search-box" :class="{ 'disabled': chimuHealthy === false || animethemesHealthy === false  || loadingChimu || loadingAnimethemes }">
               <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="11" cy="11" r="8"></circle>
                 <path d="m21 21-4.35-4.35"></path>
@@ -265,7 +289,7 @@ const filtered = computed(() => {
                 @keypress="handleSearchKeyPress"
                 placeholder="Search or create packs here..." 
                 aria-label="search"
-                :disabled="chimuHealthy === false || animethemesHealthy === false || loadingHealth"
+                :disabled="chimuHealthy === false || animethemesHealthy === false || loadingChimu || loadingAnimethemes"
               />
             </div>
 
@@ -318,8 +342,29 @@ const filtered = computed(() => {
           </div>
         </div>
       </header>
+      <!-- status banner of creation -->
+      <div v-if="currentJobStatus !== ''" class="rate-limit-banner">
+        <div class="banner-content">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+          <div class="banner-text">
+            <strong>Pack Request Status:</strong>
+            <span>
+              {{ currentJobAnimeName }} - 
+              <span v-if="currentJobStatus === 'queued'">Your request is queued. Please wait...</span>
+              <span v-else-if="currentJobStatus === 'started'">Your pack is being created. Hang tight!</span>
+              <span v-else-if="currentJobStatus === 'finished'">Your pack has been created successfully!</span>
+              <span v-else-if="currentJobStatus === 'failed'">There was an error creating your pack. Please try again.</span>
+            </span>
+          </div>
+        </div>
+      </div>
+
       <!-- loading health check banner -->
-      <div v-if="loadingHealth" class="rate-limit-banner">
+      <div v-if="loadingChimu || loadingAnimethemes" class="rate-limit-banner">
         <div class="banner-content">
           <div class="banner-text">
             <span>
@@ -401,13 +446,13 @@ const filtered = computed(() => {
 
       <main>
         <!-- TODO. fetch the sort from server as a reqst, use pagination -->
-        <div class="results-header">
+        <!-- <div class="results-header">
           <div class="sort-labels">
             <span @click="sortBy = 'title'" :class="{ active: sortBy === 'title' }">Title</span>
             <span class="divider">·</span>
             <span @click="sortBy = 'downloads'" :class="{ active: sortBy === 'downloads' }">Downloads</span>
           </div>
-        </div>
+        </div> -->
 
         <!-- Loading state -->
         <div v-if="loading" class="loading-state">

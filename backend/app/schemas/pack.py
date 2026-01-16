@@ -51,4 +51,4 @@ class PackResponse(BaseModel):
     """
     success: bool
     message: str
-    pack: Optional[Pack] = None
+    job_id: Optional[str] = None
