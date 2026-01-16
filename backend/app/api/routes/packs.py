@@ -39,6 +39,8 @@ async def create_pack(request: PackCreateRequest):
     Returns:
         PackResponse with the created pack
     """
+    # TODO. maybe move this inside the job function so that 
+    # no external api calls are made from the route handler
     anime_schema = await create_anime_schema(
         id=request.anime.id,
         name=request.anime.name,
@@ -64,6 +66,9 @@ async def create_pack(request: PackCreateRequest):
         job_id=job_id
     )
 
+# TODO. create route for fetching beatmap ids for a pack_id. 
+# this is to reduce the payload size of the list_packs and get_pack endpoints
+# (omit beatmapset_ids field)
 @router.get("/", response_model=List[Pack])
 async def list_packs(session: AsyncSession = Depends(get_session)):
     """
