@@ -34,7 +34,7 @@ const animethemesHealthy = ref(true)
 const fetchRateLimits = async () => {
   try {
     const response = await fetch('https://catboy.best/api/ratelimits', {
-      signal: AbortSignal.timeout(5000)
+      signal: AbortSignal.timeout(10000)
     });
     if (!response.ok) throw new Error('Failed to fetch rate limits')
     
@@ -55,7 +55,7 @@ const fetchRateLimits = async () => {
     rateLimitInfo.value = null
     showRateLimitWarning.value = false
   }
-  loadingChimu.value = false
+  if (loadingChimu.value) loadingChimu.value = false
 }
 
 // Handle Enter key press to trigger search
@@ -273,8 +273,10 @@ const filtered = computed(() => {
               <circle cx="16" cy="16" r="6" fill="currentColor"/>
             </svg>
           </div>
-          <h1>ossanimap</h1>
-          <p class="tagline">your favorite anime beatmap packs in one place</p>
+          <div class="header-text">
+            <h1>ossanimap</h1>
+            <p class="tagline">your favorite anime beatmap packs in one place</p>
+          </div>
         </div>
 
         <div class="controls">
@@ -494,26 +496,47 @@ const filtered = computed(() => {
 </template>
 
 <style scoped>
+
 .page {
   min-height: 100vh;
   background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
-  padding: 32px 24px;
+  padding : 0px 0px 32px 0px ;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+.header-text {
+  display: flex;
+  flex-direction: column;
 }
 
 .container {
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
 }
 
-.top {
+.top-start {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  margin-bottom: 24px;
-  padding-bottom: 24px;
+  width: 100%;
+  padding: 24px;
   border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  position: sticky;
+  top: 0;
+  background: white;
+  z-index: 100;
+}
+
+.top {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
 }
 
 .brand {
@@ -541,12 +564,15 @@ const filtered = computed(() => {
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 }
 
+/* apply gradient to text */
 .brand h1 {
   font-size: 28px;
   font-weight: 700;
   margin: 0;
-  color: #1a202c;
   letter-spacing: -0.5px;
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .controls {
@@ -799,8 +825,9 @@ const filtered = computed(() => {
   border: 1px solid #f59e0b;
   border-radius: 12px;
   padding: 16px 20px;
-  margin-bottom: 24px;
+  margin: 0 24px 24px 24px;
   box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);
+  max-width: 80rem;
 }
 
 .error-banner {
@@ -882,10 +909,10 @@ const filtered = computed(() => {
 }
 
 main {
-  margin-top: 0;
   max-width: 80rem;
   margin-left: auto;
   margin-right: auto;
+  overflow: auto;
 }
 
 .results-header {
@@ -929,11 +956,14 @@ main {
   cursor: default;
   user-select: none;
 }
-
+/* pad 1rem except top */
 .cards {
   display: grid;
-  grid-template-columns: repeat(2, minmax(340px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  max-width: 64rem;
+  width: 100%;
   gap: 20px;
+  padding: 0 1rem 1rem 1rem;
 }
 
 .loading-state,

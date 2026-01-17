@@ -1,7 +1,11 @@
 <template>
-  <article class="card">
+  <article class="card" @mouseenter="mouseHover = true" @mouseleave="mouseHover = false">
+    <div class="card-content">
     <div class="cover" :style="coverStyle">
-      <div class="overlay"></div>
+      <div class="gradient-overlay"></div>
+      <div class="modes-overlay">
+        <!-- Future place for mode icons -->
+      </div>
       <!-- use pack.image_link for the cover image and ensure to center -->
       <img v-if="pack.image_link" :src="pack.image_link" alt="Anime cover image" />
     </div>
@@ -28,7 +32,9 @@
           <span>{{ formatNumber(pack.downloads) }}</span>
         </div>
       </div>
-      <div class="actions">
+    </div>
+    <!-- only show actions on hover -->
+      <div class="actions" v-show="mouseHover || isDownloading">
         <button 
           @click="handleDownloadClick" 
           class="download-btn primary"
@@ -58,9 +64,8 @@
             Download
           </div>
         </button>
-      </div>
+      </div> 
     </div>
-
     <DownloadConfirmModal 
       :show="showModal" 
       @close="showModal = false" 
@@ -81,6 +86,7 @@ const props = defineProps({
   disabled: { type: Boolean, default: false }
 })
 
+const mouseHover = ref(false)
 const showModal = ref(false)
 const isDownloading = ref(false)
 const downloadProgress = ref({ current: 0, total: 0, downloadedMB: 0 })
@@ -180,6 +186,9 @@ const downloadWithoutVideo = async (id) => {
 }
 
 const handleDownload = async () => {
+  // Close the modal
+  showModal.value = false
+  
   const ids = props.pack.beatmapset_ids;
 
   isDownloading.value = true
@@ -284,25 +293,54 @@ const formatNumber = (num) => {
 </script>
 
 <style scoped>
-.card {
+
+/* gradient from bottom right */
+.gradient-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.80),
+    transparent
+  );
+}
+
+.modes-overlay {
+  position: absolute;
+  top: 8px;
+  right: 8px;
   display: flex;
-  flex-direction: column;
-  background: white;
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  gap: 6px;
+  /* Future styles for mode icons */
+}
+
+.card-content {
+  display: flex;
   height: 100%;
 }
 
+.card {
+  display: flex;
+  flex-direction: column; 
+  position: relative;
+  background: white;
+  border-radius: 16px;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  height: 10rem;
+}
+/* shadow inner from left  to right with primary color*/
 .card:hover {
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: inset 0 12px 28px rgba(102, 126, 234, 0.12), inset 0 4px 8px rgba(102, 126, 234, 0.08);
 }
 
 .cover {
   position: relative;
-  width: 100%;
-  height: 8rem;
+  width: 35%;
+  height: 100%;
   overflow: hidden;
 }
 
@@ -399,9 +437,6 @@ const formatNumber = (num) => {
 .actions {
   display: flex;
   gap: 8px;
-  margin-top: 8px;
-  padding-top: 12px;
-  border-top: 1px solid #e2e8f0;
 }
 
 .download-btn {
@@ -410,7 +445,7 @@ const formatNumber = (num) => {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 10px 12px;
+  padding: 0.1rem 0.3rem;
   border-radius: 10px;
   font-size: 12px;
   font-weight: 600;
