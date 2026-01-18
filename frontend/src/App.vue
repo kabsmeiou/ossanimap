@@ -161,7 +161,7 @@ const handleSuggestionClick = async (suggestion) => {
       id: suggestion.id,
       name: suggestion.name,
       slug: suggestion.slug,
-      synopsis: suggestion.synopsis || null,
+      image_link: suggestion.image_link
     },
     status: [1],
     mode: [0],
