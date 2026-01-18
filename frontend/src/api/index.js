@@ -119,7 +119,7 @@ export const api = {
      * Get global statistics
      * @returns {Promise<Object>} Global stats
      */
-    getGlobal: () => request('/stats/'),
+    getGlobalStats: () => request('/stats/'),
   },
 
   /**

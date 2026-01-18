@@ -30,6 +30,12 @@ const loadingAnimethemes = ref(true)
 const chimuHealthy = ref(true)
 const animethemesHealthy = ref(true)
 
+// stats
+const globalStats = ref({
+  total_packs: 0,
+  total_beatmapsets: 0,
+  total_downloads: 0,
+})
 
 const fetchRateLimits = async () => {
   try {
@@ -56,6 +62,36 @@ const fetchRateLimits = async () => {
     showRateLimitWarning.value = false
   }
   if (loadingChimu.value) loadingChimu.value = false
+}
+
+
+let globalStatsTimeout = null
+let isPollingGlobalStats = false
+
+const stopGlobalStatsPolling = () => {
+  if (globalStatsTimeout) {
+    clearTimeout(globalStatsTimeout)
+    globalStatsTimeout = null
+  }
+  isPollingGlobalStats = false
+}
+
+const pollGlobalStats = () => {
+  if (isPollingGlobalStats) return
+  isPollingGlobalStats = true
+
+  const tick = async () => {
+    try {
+      const data = await api.stats.getGlobalStats()
+      globalStats.value = data
+      globalStatsTimeout = setTimeout(tick, 3000)
+    } catch (err) {
+      console.error('Failed to poll global stats:', err)
+      stopGlobalStatsPolling()
+    }
+  }
+
+  tick()
 }
 
 // Handle Enter key press to trigger search
@@ -124,31 +160,65 @@ const fetchSearchSuggestions = async (searchQuery) => {
 const currentJobAnimeName = ref('')
 const currentJobStatus = ref('')
 
-const removeStatusInterval = () => {
-  const interval = setInterval(() => {
+let clearStatusTimeout = null
+
+const scheduleClearJobStatus = () => {
+  if (clearStatusTimeout) clearTimeout(clearStatusTimeout)
+
+  clearStatusTimeout = setTimeout(() => {
     currentJobStatus.value = ''
     currentJobAnimeName.value = ''
-    clearInterval(interval)
-  }, 5000); // remove status after 5 seconds
+    clearStatusTimeout = null
+  }, 5000)
 }
 
-const pollJobStatus = async (jobId) => {
-  const interval = setInterval(async () => {
+let jobPollTimeout = null
+let pollingJobId = null
+let isPolling = false
+
+const stopJobPolling = () => {
+  if (jobPollTimeout) {
+    clearTimeout(jobPollTimeout)
+    jobPollTimeout = null
+  }
+  pollingJobId = null
+  isPolling = false
+}
+
+const pollJobStatus = (jobId) => {
+  // if already polling this job, do nothing
+  if (isPolling && pollingJobId === jobId) return
+
+  // stop any previous poller
+  stopJobPolling()
+
+  pollingJobId = jobId
+  isPolling = true
+
+  const tick = async () => {
     try {
       const data = await api.job.getStatus(jobId)
-      if (data.status === 'finished' || data.status === 'failed') {
-        clearInterval(interval)
-        fetchPacks() // Refresh packs list when job is done
-        removeStatusInterval()
-      }
       currentJobStatus.value = data.status
+
+      if (data.status === 'finished' || data.status === 'failed') {
+        stopJobPolling()
+        await fetchPacks()
+        scheduleClearJobStatus()
+        return
+      }
+
+      // schedule next tick after request completes (prevents overlap)
+      jobPollTimeout = setTimeout(tick, 1000)
     } catch (err) {
       console.error('Failed to poll job status:', err)
-      clearInterval(interval)
+      stopJobPolling()
       currentJobStatus.value = ''
       currentJobAnimeName.value = ''
+      scheduleClearJobStatus()
     }
-  }, 1000); // is it done yet
+  }
+
+  tick()
 }
 
 // Handle suggestion click
@@ -211,21 +281,42 @@ watch(query, () => {
   debouncedSearch()
 })
 
-let interval;
+let healthInterval = null
+
 onMounted(() => {
   checkHealth()
   fetchRateLimits()
-  interval = setInterval(() => {
+
+  healthInterval = setInterval(() => {
     checkHealth()
     fetchRateLimits()
-  }, 60000); // every 1 minute
+  }, 60000)
+
   fetchPacks()
+  pollGlobalStats()
   document.addEventListener('click', handleClickOutside)
+  document.addEventListener("visibilitychange", onVisibilityChange)
 })
 
+const onVisibilityChange = () => {
+  if (document.hidden) {
+    stopGlobalStatsPolling()
+  } else {
+    pollGlobalStats()
+  }
+}
 // Cleanup on unmount
 onUnmounted(() => {
+  if (healthInterval) {
+    clearInterval(healthInterval)
+  }
+  stopJobPolling()
+  stopGlobalStatsPolling()
+  if (clearStatusTimeout) {
+    clearTimeout(clearStatusTimeout)
+  }
   document.removeEventListener('click', handleClickOutside)
+  document.removeEventListener("visibilitychange", onVisibilityChange)
   // Clear debounce timer on unmount
   if (searchDebounceTimer) {
     clearTimeout(searchDebounceTimer)
@@ -278,7 +369,11 @@ const filtered = computed(() => {
             <p class="tagline">your favorite anime beatmap packs in one place</p>
           </div>
         </div>
-
+        <div class="stats">
+          <span>Total Packs: {{ globalStats.total_packs }}</span>
+          <span>Total Beatmapsets: {{ globalStats.total_beatmapsets }}</span>
+          <span>Total Downloads: {{ globalStats.total_downloads }}</span>
+        </div>
         <div class="controls">
           <div class="search-container" ref="searchInput">
             <div class="search-box" :class="{ 'disabled': chimuHealthy === false || animethemesHealthy === false  || loadingChimu || loadingAnimethemes }">
@@ -344,6 +439,7 @@ const filtered = computed(() => {
           </div>
         </div>
       </header>
+
       <!-- status banner of creation -->
       <div v-if="currentJobStatus !== ''" class="rate-limit-banner">
         <div class="banner-content">
@@ -573,6 +669,16 @@ const filtered = computed(() => {
   background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+}
+
+.stats {
+  font-size: 14px;
+  font-weight: 800; 
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #4a5568;
+  display: flex;
+  gap: 2rem;
+  flex-wrap: wrap;
 }
 
 .controls {
