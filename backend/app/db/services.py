@@ -1,8 +1,11 @@
+import logging
 from sqlalchemy import select, func
 from .models.anime import AnimeDB
 from .models.pack import PackDB
 from app.schemas.stats import Stats
 
+
+logger = logging.getLogger("uvicorn.error")
 
 async def get_anime_by_id(session, anime_id):
     """Retrieves an Anime by its ID."""
@@ -63,7 +66,8 @@ async def delete_pack(session, pack_id):
     """
     pack_to_delete = await session.get(PackDB, pack_id)
     if pack_to_delete:
-        session.delete(pack_to_delete)
+        logger.info(f"Pack found. Deleting pack with ID {pack_id}")
+        await session.delete(pack_to_delete)
         await session.commit()
 
 async def get_global_stats(session) -> Stats:

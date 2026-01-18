@@ -78,7 +78,7 @@ async def search_beatmapsets(keyword: str, source: str | None = None) -> list[Be
     """
     try:
         keyword = f'"{keyword}"' if source is None else f'source=""{source}""'
-        results = await api.search_beatmapsets(query=keyword, mode=BeatmapsetSearchMode.STANDARD.value)
+        results = await api.search_beatmapsets(query=keyword, mode=BeatmapsetSearchMode.STANDARD.value, category="ranked")
         # get the beatmapsets from the results, ensure the beatmapset has sources
         beatmapsets: list[Beatmapset] = [
             Beatmapset.model_validate(bm, from_attributes=True)
