@@ -359,10 +359,8 @@ const filtered = computed(() => {
       <header class="top">
         <div class="brand">
           <div class="logo">
-            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="16" cy="16" r="14" stroke="currentColor" stroke-width="2.5"/>
-              <circle cx="16" cy="16" r="6" fill="currentColor"/>
-            </svg>
+            <!-- use favicon.ico -->
+            <img src="/favicon.ico" alt="ossanimap Logo" width="34" height="34" />
           </div>
           <div class="header-text">
             <h1>ossanimap</h1>
@@ -649,10 +647,10 @@ const filtered = computed(() => {
 }
 
 .brand .logo {
-  width: 48px;
-  height: 48px;
+  width: 3rem;
+  height: 3rem;
   border-radius: 12px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-color: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   display: flex;
   align-items: center;
