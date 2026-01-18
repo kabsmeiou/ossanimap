@@ -7,7 +7,7 @@
         <!-- Future place for mode icons -->
       </div>
       <!-- use pack.image_link for the cover image and ensure to center -->
-      <img v-if="pack.image_link" :src="pack.image_link" alt="Anime cover image" />
+      <img v-if="pack.image_link" :src="pack.image_link" alt="Anime cover image" loading="lazy"/>
     </div>
     <div class="content">
       <div class="header">
