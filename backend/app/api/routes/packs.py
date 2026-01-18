@@ -5,12 +5,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.services import list_packs as list_packs_from_db, delete_pack as delete_pack_from_db, increment_pack_downloads, get_pack_by_id
 from app.schemas.pack import Pack, PackCreateRequest, PackResponse
-from app.redis.job import generate_pack_job
+from app.redis.jobs import generate_pack_job
 from app.utils.format import packdb_to_packschema
 from app.db.session import get_session
 from app.redis.queue import pack_creation_queue
 from app.services.pack_generator import pack_generator
-from app.redis.utils import fetch_job_instance
 
 
 router = APIRouter(

@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, status
 from rq.job import Job
 import logging
 
-from app.redis.queue import redis_conn
+from app.redis.queue import redis_sync
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -15,7 +15,7 @@ router = APIRouter(
 @router.get("/{job_id}", status_code=status.HTTP_200_OK)
 async def get_job_status(job_id: str):
     try:
-        job = Job.fetch(job_id, connection=redis_conn)
+        job = Job.fetch(job_id, connection=redis_sync)
         
         return {
             "job_id": job_id,
