@@ -113,8 +113,8 @@ async def handle_beatmapset_search(
     song_list = [normalize_beatmap_title(song.lower()) for song in song_list]
 
     unique_beatmapsets = set()
-    sources = set()
-    
+    sources = {}
+
     # perform searches with generated keywords
     keywords = generate_search_keywords(anime_title)
     search_calls = [] # create coroutine list for concurrent searching, then await them all at once
@@ -126,17 +126,24 @@ async def handle_beatmapset_search(
         for bm in beatmapsets:
             if bm.source and check_if_beatmapset_matches_song(bm, song_list):
                 unique_beatmapsets.add(bm.id)
-                sources.add(bm.source) # only add sources from matched beatmapsets
+                # add count of source to dict
+                if bm.source in sources:
+                    sources[bm.source] += 1
+                else:
+                    sources[bm.source] = 1
 
+    sources = dict(sorted(sources.items(), key=lambda item: item[1], reverse=True))
     # search again using sources only, but this is usually just 1-3 extra searches on average
+    # you might be wondering why count >= 3? well, if a source appears multiple times, it's more likely to be relevant and its a workaround for beatmaps of cover songs of the anime with a different source.
     search_calls = []
-    for source in sources:
-        search_calls.append(search_beatmapsets(anime_title, source=source))
+    for source, count in sources.items():
+        if count >= 3:
+            search_calls.append(search_beatmapsets(anime_title, source=source))
     
     beatmapsets_list = await asyncio.gather(*search_calls)
-    logger.info(f"Performing additional source-based searches for sources: {sources}")
     for beatmapsets in beatmapsets_list:
         for bm in beatmapsets:
             unique_beatmapsets.add(bm.id)
+
     beatmapset_ids = list(unique_beatmapsets)
     return beatmapset_ids
