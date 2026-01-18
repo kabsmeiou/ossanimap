@@ -5,6 +5,7 @@ import logging
 import asyncio
 
 from app.utils.format import format_anime_title_for_animethemes
+from app.utils.string import normalize_beatmap_title
 from .animethemes import fetch_anime_songs
 from app.schemas.osu import Beatmapset, BeatmapsetSearchMode
 
@@ -89,12 +90,11 @@ async def search_beatmapsets(keyword: str, source: str | None = None) -> list[Be
     return beatmapsets
 
 def check_if_beatmapset_matches_song(bm: Beatmapset, song_list: list[str]) -> bool:
-    # remove part with () in osu! title
-    beatmap_title = bm.title.lower()
+    beatmap_title = normalize_beatmap_title(bm.title.lower())
+    logger.info(f"Checking beatmap title '{beatmap_title}' against song list")
     if "(" in beatmap_title and ")" in beatmap_title:
         beatmap_title = beatmap_title[:beatmap_title.index("(")].strip()
-    beatmap_title_unicode = bm.title_unicode.lower() if bm.title_unicode else ""
-    return beatmap_title in song_list or beatmap_title_unicode in song_list
+    return beatmap_title in song_list
 
 async def handle_beatmapset_search(
     anime_title: str,
@@ -108,11 +108,15 @@ async def handle_beatmapset_search(
         List of unique beatmapset IDs
     """
     formatted_title = format_anime_title_for_animethemes(anime_title)
+    # fetch anime songs from AnimeThemes
     song_list = await fetch_anime_songs(formatted_title)
-    unique_beatmapsets = set()
-    keywords = generate_search_keywords(anime_title)
-    sources = set()
+    song_list = [normalize_beatmap_title(song.lower()) for song in song_list]
 
+    unique_beatmapsets = set()
+    sources = set()
+    
+    # perform searches with generated keywords
+    keywords = generate_search_keywords(anime_title)
     search_calls = [] # create coroutine list for concurrent searching, then await them all at once
     for keyword in keywords:
         search_calls.append(search_beatmapsets(keyword))
@@ -122,16 +126,17 @@ async def handle_beatmapset_search(
         for bm in beatmapsets:
             if bm.source and check_if_beatmapset_matches_song(bm, song_list):
                 unique_beatmapsets.add(bm.id)
-                sources.add(bm.source)
+                sources.add(bm.source) # only add sources from matched beatmapsets
 
+    # search again using sources only, but this is usually just 1-3 extra searches on average
     search_calls = []
     for source in sources:
         search_calls.append(search_beatmapsets(anime_title, source=source))
     
     beatmapsets_list = await asyncio.gather(*search_calls)
+    logger.info(f"Performing additional source-based searches for sources: {sources}")
     for beatmapsets in beatmapsets_list:
         for bm in beatmapsets:
-            if check_if_beatmapset_matches_song(bm, song_list):
-                unique_beatmapsets.add(bm.id)
+            unique_beatmapsets.add(bm.id)
     beatmapset_ids = list(unique_beatmapsets)
     return beatmapset_ids

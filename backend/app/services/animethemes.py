@@ -3,7 +3,8 @@ import primp
 import logging
 import json
 from app.utils.format import format_anime_title_for_animethemes
-from app.schemas.anime import Anime, AnimeSearchResult
+from app.utils.parse import extract_anime_data_from_search
+from app.schemas.anime import Anime
 
 ANIMETHEMES_URL = "https://api.animethemes.moe/"
 
@@ -44,6 +45,14 @@ class AnimeThemesDown(AnimeThemesTryLater):
             f"animethemes.moe returned HTTP {self.status_code}. "
             f"Retry after {self.retry_after} seconds."
         )
+    
+class AnimeThemesRequestError(Exception):
+    def __init__(self, status_code: int):
+        self.status_code = status_code
+        super().__init__(self.__str__())
+    
+    def __str__(self) -> str:
+        return f"AnimeThemes API request failed with status code {self.status_code}."
 
 class AnimeThemesInvalidResponse(Exception):
     pass
@@ -68,7 +77,7 @@ async def _send_query(url: str, params: dict | None = None) -> dict:
         raise AnimeThemesDown(r.status_code)
 
     if r.status_code != 200:
-        raise AnimeThemesDown(r.status_code, retry_after=60)
+        raise AnimeThemesRequestError(r.status_code)
     
     raw_text = r.text  # 🔑 force full read ONCE
 
@@ -78,30 +87,6 @@ async def _send_query(url: str, params: dict | None = None) -> dict:
         raise json.JSONDecodeError("Animethemes returned truncated or invalid JSON") from e
 
     return d
-    
-# animethemes api expects anime titles to be in lowercase with underscores instead of spaces
-async def get_anime_metadata(anime_title: str) -> Anime:
-    formatted_title = format_anime_title_for_animethemes(anime_title)
-    url = f"{ANIMETHEMES_URL.rstrip('/')}/anime/{formatted_title}"
-    data = await _send_query(url)
-    anime_metadata = data["anime"] if "anime" in data else {}
-    return Anime(**anime_metadata)
-
-async def fetch_anime_image_link(anime_title: str) -> str | None:
-    formatted_title = format_anime_title_for_animethemes(anime_title)
-    params = {
-        "include": "images"
-    }
-    url = f"{ANIMETHEMES_URL.rstrip('/')}/anime/{formatted_title}"
-    data = await _send_query(url, params=params)
-    anime_metadata = data["anime"] if "anime" in data else {}
-    images = anime_metadata.get("images", [])
-    if images:
-        # Return the first image link
-        image_link = images[0].get("link")
-        logger.info("Fetched image link for anime '%s': %s", anime_title, image_link)
-        return image_link
-    return None
 
 async def fetch_anime_songs(anime_title: str) -> list[str]:
     formatted_title = format_anime_title_for_animethemes(anime_title)
@@ -121,15 +106,17 @@ async def fetch_anime_songs(anime_title: str) -> list[str]:
     return song_titles
 
 
-async def search_anime_by_name(anime_name: str) -> list[AnimeSearchResult]:
+async def search_anime_by_name(anime_name: str) -> list[Anime]:
     url = f"{ANIMETHEMES_URL.rstrip('/')}/anime"
     params = {
         "q": anime_name,
         "page[size]": "5",
+        "include": "images"
     }
     data = await _send_query(url, params=params)
-    anime_list = data.get("anime", [])
-    return [AnimeSearchResult(**anime) for anime in anime_list]
+    # logger.info("Searched anime by name '%s'", data)
+    anime_list = extract_anime_data_from_search(data)
+    return anime_list
 
 
 async def check_animethemes_api() -> bool:

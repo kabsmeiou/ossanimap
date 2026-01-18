@@ -7,7 +7,6 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.schemas.anime import Anime
 from app.schemas.osu import Beatmapset
 from app.schemas.pack import PackCreate
-from app.services.animethemes import get_anime_metadata, AnimeThemesInvalidResponse, AnimeThemesThrottleError, AnimeThemesDown
 from app.services.osu import handle_beatmapset_search
 from app.db.session import AsyncSessionLocal
 from app.db.services import save_pack
@@ -108,27 +107,6 @@ class PackGenerator:
             logger.error(f"Unexpected error generating pack for {anime.name}: {str(e)}")
             raise PackGenerationError(anime_name=anime.name, code=-1, message=str(e)) from e
     
-    async def _fetch_anime_metadata(self, anime_name: str) -> Anime:
-        """
-        Fetch anime metadata from AnimeThemes API.
-        
-        Args:
-            anime_name: The anime name to search for
-        
-        Returns:
-            Anime: Anime metadata object
-        
-        Raises:
-            PackGenerationError: If anime metadata cannot be fetched
-        """
-        try:
-            return await get_anime_metadata(anime_name)
-        except json.JSONDecodeError as e:
-            raise PackGenerationError(anime_name=anime_name, code=-3, message="Invalid response from AnimeThemes API") from e
-        except (AnimeThemesInvalidResponse, AnimeThemesThrottleError, AnimeThemesDown) as e:
-            logger.error(f"AnimeThemes API error for '{anime_name}': {str(e)}")
-            raise PackGenerationError(anime_name=anime_name, code=-2, message="Failed to fetch anime metadata") from e
-    
     async def _search_beatmapsets(
         self,
         anime_title: str,
@@ -171,10 +149,10 @@ class PackGenerator:
         Create a Pack object with the collected data.
         
         Args:
-            anime_title: The anime title
-            anime_slug: The anime slug
+            anime: Anime metadata
             beatmapset_ids: List of beatmapset IDs
-            anime_metadata: Full anime metadata object
+            mode: Game mode filter
+            status: Beatmap status filter
         
         Returns:
             PackCreate: Newly created PackCreate object
@@ -187,7 +165,6 @@ class PackGenerator:
             anime_id=anime.id,
             anime_title=anime.name,
             anime_slug=anime.slug,
-            anime_synopsis=anime.synopsis,
             image_link=anime.image_link,
             status=status,
             mode=mode,

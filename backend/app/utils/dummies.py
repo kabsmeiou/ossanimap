@@ -6,6 +6,5 @@ def create_dummy_anime() -> Anime:
         id=0,
         name="Dummy Anime",
         slug="dummy-anime",
-        synopsis="This is a dummy anime used for testing purposes.",
-        image_link="https://example.com/dummy-image.jpg"
+        image_link=None
     )

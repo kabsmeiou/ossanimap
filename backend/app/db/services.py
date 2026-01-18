@@ -17,8 +17,7 @@ async def save_pack(session, anime_metadata, pack):
         anime_db = AnimeDB(
             name=anime_metadata.name,
             slug=anime_metadata.slug,
-            synopsis=anime_metadata.synopsis,
-            image_link=anime_metadata.image_link
+            image_link=anime_metadata.image_link,
         )
         # if anime_metadata provides an ID (from external API), use it so that
         # external references remain stable; otherwise let the DB assign one

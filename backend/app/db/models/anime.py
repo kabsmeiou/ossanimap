@@ -10,7 +10,6 @@ class AnimeDB(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
-    synopsis: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     image_link: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
     packs: Mapped[List["PackDB"]] = relationship(back_populates="anime")

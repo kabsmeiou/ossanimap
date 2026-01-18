@@ -8,7 +8,6 @@ from app.schemas.pack import Pack, PackCreateRequest, PackResponse
 from app.redis.job import generate_pack_job
 from app.utils.format import packdb_to_packschema
 from app.db.session import get_session
-from app.utils.helpers import create_anime_schema
 from app.redis.queue import pack_creation_queue
 from app.services.pack_generator import pack_generator
 from app.redis.utils import fetch_job_instance
@@ -21,9 +20,6 @@ router = APIRouter(
 
 logger = logging.getLogger("uvicorn.error")
 
-
-# TODO. queue the pack generation request
-# this is to avoid multiple requests for the same anime at the same time and to improve response time of the endpoint
 @router.post("/", response_model=PackResponse, status_code=status.HTTP_201_CREATED)
 async def create_pack(request: PackCreateRequest):
     """
@@ -40,34 +36,26 @@ async def create_pack(request: PackCreateRequest):
     Returns:
         PackResponse with the created pack
     """
-    # TODO. maybe move this inside the job function so that 
-    # no external api calls are made from the route handler
-    anime_schema = await create_anime_schema(
-        id=request.anime.id,
-        name=request.anime.name,
-        slug=request.anime.slug,
-        synopsis=request.anime.synopsis,
-    )
     job_id = pack_generator.create_job_id(
-        anime_id=anime_schema.id,
+        anime_id=request.anime.id,
         status=request.status,
         mode=request.mode
     )
     # if a job with the same id is already in the queue or being processed, return its job id
-    if fetch_job_instance(job_id):
-        return PackResponse(
-            success=True,
-            message=f"Pack for {request.anime.name} is already being generated",
-            job_id=job_id
-        )
+    # if fetch_job_instance(job_id):
+    #     return PackResponse(
+    #         success=True,
+    #         message=f"Pack for {request.anime.name} is already being generated",
+    #         job_id=job_id
+    #     )
     pack_creation_queue.enqueue(
         generate_pack_job,
+        failure_ttl=0,
         job_id=job_id,
-        anime_id=anime_schema.id,
-        anime_name=anime_schema.name,
-        anime_slug=anime_schema.slug,
-        anime_synopsis=anime_schema.synopsis,
-        anime_image_url=anime_schema.image_link,
+        anime_id=request.anime.id,
+        anime_name=request.anime.name,
+        anime_slug=request.anime.slug,
+        anime_image_link=request.anime.image_link,
         status=request.status,
         mode=request.mode
     )

@@ -28,7 +28,6 @@ def packdb_to_packschema(pack_db: PackDB) -> Pack:
             mode=pack_db.mode,
             anime_title=pack_db.anime.name,
             image_link=pack_db.anime.image_link,
-            synopsis=pack_db.anime.synopsis,
             beatmapset_ids=pack_db.beatmapset_ids,
             downloads=pack_db.downloads,
             created_at=pack_db.created_at.isoformat() if pack_db.created_at is not None else None,

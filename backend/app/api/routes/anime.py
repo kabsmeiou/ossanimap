@@ -2,8 +2,8 @@ from fastapi import APIRouter, HTTPException, status
 from typing import List
 import logging
 
-from app.schemas.anime import AnimeSearchResult
-from app.services.animethemes import search_anime_by_name
+from app.schemas.anime import Anime
+from app.services.animethemes import search_anime_by_name, AnimeThemesDown
 
 logger = logging.getLogger(__name__)
 
@@ -12,7 +12,7 @@ router = APIRouter(
     tags=["anime"]
 )
 
-@router.get("/search", response_model=List[AnimeSearchResult])
+@router.get("/search", response_model=List[Anime])
 async def search_anime(anime_name: str):
     """
     Search for anime by name using the AnimeThemes API.
@@ -27,6 +27,7 @@ async def search_anime(anime_name: str):
         results = await search_anime_by_name(anime_name)
         return results
     except Exception as e:
+        logger.error(f"Anime search failed for '{anime_name}': {e}")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Anime search failed"
