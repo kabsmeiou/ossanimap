@@ -1,21 +1,38 @@
+import asyncio
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import logging
 import uvicorn
+from contextlib import asynccontextmanager
 
 from app.services.pack_generator import PackGenerationError
 from app.api.routes import packs, anime, stats, health, job
+from app.redis.jobs import stats_updater
 
 logger = logging.getLogger("uvicorn.error")
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # start the bg task on loop
+    task = asyncio.create_task(stats_updater())
+    try:
+        yield
+    finally:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+        
 # TODO. fix logs
 # TODO. caching for external api calls
 # TODO. a single create_pack queue to avoid multiple requests of the same anime at the same time
 app = FastAPI(
     title="ossanimap",
     description="osu! beatmapset packager that aggregates ranked/loved osu! beatmaps into downloadable packages grouped by anime name",
-    version="0.1.0"
+    version="0.1.0",
+    lifespan=lifespan
 )
 
 origins = [
@@ -52,6 +69,7 @@ async def pack_generation_error_handler(request, exc: PackGenerationError):
             "anime": exc.anime_name,
         },
     )
+
 
 if __name__ == "__main__":
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
