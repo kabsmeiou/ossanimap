@@ -33,8 +33,8 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
     cursor.close()
 
 
-def make_anime(id=None, name="Test Anime", slug="test-anime", synopsis="syn"):
-    return SimpleNamespace(id=id, name=name, slug=slug, synopsis=synopsis)
+def make_anime(id=None, name="Test Anime", slug="test-anime", image_link="http://example.com/image.jpg"):
+    return SimpleNamespace(id=id, name=name, slug=slug, image_link=image_link)
 
 def make_pack(name="Test Pack", beatmapset_ids=None, downloads=0):
     if beatmapset_ids is None:
@@ -42,14 +42,14 @@ def make_pack(name="Test Pack", beatmapset_ids=None, downloads=0):
     return SimpleNamespace(name=name, beatmapset_ids=beatmapset_ids, downloads=downloads)
 
 def test_create_anime_and_pack(db_session):
-    anime = make_anime(id=1, name="My Anime", slug="my-anime", synopsis="an overview")
+    anime = make_anime(id=1, name="My Anime", slug="my-anime", image_link="http://example.com/image.jpg")
     pack = make_pack(name="My Pack", beatmapset_ids=[10, 20, 30], downloads=0)
 
     anime_db = AnimeDB(
         id=anime.id,
         name=anime.name,
         slug=anime.slug,
-        synopsis=anime.synopsis
+        image_link=anime.image_link,
     )
     db_session.add(anime_db)
     db_session.flush()  # to assign ID if needed
@@ -71,8 +71,9 @@ def test_create_anime_and_pack(db_session):
 
 
 def test_anime_unique_slug_constraint(db_session):
-    anime1 = AnimeDB(name="Anime One", slug="unique-slug", synopsis="first anime")
-    anime2 = AnimeDB(name="Anime Two", slug="unique-slug", synopsis="second anime")
+    anime1 = AnimeDB(name="Anime One", slug="unique-slug", )
+
+    anime2 = AnimeDB(name="Anime Two", slug="unique-slug", )
 
     db_session.add(anime1)
     db_session.commit()
