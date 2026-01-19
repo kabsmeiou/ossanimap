@@ -49,7 +49,7 @@ async def stats_updater():
                 stats = await get_global_stats(session)
             
             await redis_async.set("global_stats", stats.model_dump_json())
-            await asyncio.sleep(3)  # update cache every 3 seconds
+            await asyncio.sleep(10)  # update cache every 3 seconds
     except asyncio.CancelledError:
         raise
     except Exception as e:

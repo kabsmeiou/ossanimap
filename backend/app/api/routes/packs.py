@@ -1,10 +1,10 @@
-from typing import List
+from typing import Optional
 from fastapi import APIRouter, HTTPException, status, Depends
 import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.services import list_packs as list_packs_from_db, delete_pack as delete_pack_from_db, increment_pack_downloads, get_pack_by_id
-from app.schemas.pack import Pack, PackCreateRequest, PackResponse
+from app.db.services import list_packs_paginated, delete_pack as delete_pack_from_db, increment_pack_downloads, get_pack_by_id
+from app.schemas.pack import Pack, PackCreateRequest, PackResponse, PaginatedResponse
 from app.redis.jobs import generate_pack_job
 from app.utils.format import packdb_to_packschema
 from app.db.session import get_session
@@ -67,17 +67,28 @@ async def create_pack(request: PackCreateRequest):
 # TODO. create route for fetching beatmap ids for a pack_id. 
 # this is to reduce the payload size of the list_packs and get_pack endpoints
 # (omit beatmapset_ids field)
-@router.get("/", response_model=List[Pack])
-async def list_packs(session: AsyncSession = Depends(get_session)):
+@router.get("/", response_model=PaginatedResponse)
+async def list_packs(
+    session: AsyncSession = Depends(get_session),
+    cursor: Optional[str] = None,
+    limit: int = 6
+):
     """
     List all available beatmap packs.
     
     Returns:
         List of all Pack objects
     """
-    packs_db = await list_packs_from_db(session=session)
+    packs_db, next_cursor = await list_packs_paginated(
+        session=session, 
+        cursor=cursor, 
+        limit=limit
+    )
     packs = [packdb_to_packschema(p) for p in packs_db]
-    return packs
+    return {
+        "next_cursor": next_cursor,
+        "items": packs
+    }
 
 @router.get("/{pack_id}", response_model=Pack)
 async def get_pack(pack_id: int, session: AsyncSession = Depends(get_session)):
