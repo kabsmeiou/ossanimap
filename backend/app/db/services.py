@@ -1,8 +1,9 @@
 import logging
-from sqlalchemy import select, func
+from sqlalchemy import or_, and_, select, func
 from .models.anime import AnimeDB
 from .models.pack import PackDB
 from app.schemas.stats import Stats
+from app.utils.utils import encode_cursor, decode_cursor
 
 
 logger = logging.getLogger("uvicorn.error")
@@ -47,6 +48,29 @@ async def list_packs(session):
     stmt = select(PackDB)
     result = (await session.scalars(stmt)).all()
     return result
+
+async def list_packs_paginated(session, cursor: str, limit: int) -> tuple[list[PackDB], str | None]:
+    """Lists packs in a paginated manner."""
+    # if cursor is provided, fetch packs with ID greater than cursor, else start from beginning
+    stmt = select(PackDB).order_by(PackDB.created_at.desc(), PackDB.id.desc())
+    if cursor:
+        last_created_at, last_id = decode_cursor(cursor)
+        stmt = stmt.where(
+            (PackDB.created_at < last_created_at) |
+            ((PackDB.created_at == last_created_at) & (PackDB.id < last_id))
+        )
+
+    stmt = stmt.limit(limit + 1)
+    rows = (await session.execute(stmt)).scalars().all()
+
+    has_next = len(rows) > limit
+    page = rows[:limit]
+    next_cursor = None
+    if has_next and page:
+        last = page[-1]
+        next_cursor = encode_cursor(last.created_at, last.id)
+
+    return page, next_cursor
 
 async def get_pack_by_id(session, pack_id):
     """Retrieves a pack by its ID."""

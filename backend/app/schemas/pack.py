@@ -50,3 +50,7 @@ class PackResponse(BaseModel):
     success: bool
     message: str
     job_id: Optional[str] = None
+
+class PaginatedResponse(BaseModel):
+    next_cursor: Optional[str] = Field(None, description="Cursor for the next page of results")
+    items: List[Pack] = Field(..., description="List of packs on the current page")

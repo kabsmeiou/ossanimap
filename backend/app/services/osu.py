@@ -91,7 +91,6 @@ async def search_beatmapsets(keyword: str, source: str | None = None) -> list[Be
 
 def check_if_beatmapset_matches_song(bm: Beatmapset, song_list: list[str]) -> bool:
     beatmap_title = normalize_beatmap_title(bm.title.lower())
-    logger.info(f"Checking beatmap title '{beatmap_title}' against song list")
     if "(" in beatmap_title and ")" in beatmap_title:
         beatmap_title = beatmap_title[:beatmap_title.index("(")].strip()
     return beatmap_title in song_list
