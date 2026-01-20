@@ -3,10 +3,11 @@ import os
 from dotenv import load_dotenv
 import logging
 import asyncio
+import re
 
 from app.utils.format import format_anime_title_for_animethemes
 from app.utils.string import normalize_beatmap_title
-from .animethemes import fetch_anime_songs
+from .animethemes import fetch_anime_songs_and_alternate_titles
 from app.schemas.osu import Beatmapset, BeatmapsetSearchMode
 
 load_dotenv()
@@ -38,36 +39,15 @@ async def fetch_beatmapset(beatmapset_id: int) -> Beatmapset:
 
 
 def generate_search_keywords(anime_title: str) -> list[str]:
-    keywords = [anime_title]
-    special_chars = {":", "-", "–", "|", "/", "\\", ";"}
-
-    running_title = ""
-    for i, cur in enumerate(anime_title):
-        if cur in special_chars and ((i > 0 and anime_title[i-1] == " ") or (i + 1 < len(anime_title) and anime_title[i+1] == " ")):
-            if running_title:
-                keywords.append(running_title.strip())
-                running_title = ""
-        else:
-            running_title += cur
-
-    if running_title and running_title.strip() not in keywords:
-        keywords.append(running_title.strip())
-
-    final_keywords = keywords
-    for kw in keywords:
-        cur_kw = kw
-        has_changed = False
-        for char in special_chars:
-            if char in cur_kw:
-                cur_kw = cur_kw.replace(char, " ")
-                has_changed = True
-        if has_changed:
-            final_keywords.append(cur_kw.strip())
-
-    return final_keywords
+    keywords = set()
+    keywords.add(anime_title.strip())
+    normalized = re.sub(r"[^\w\s]", " ", anime_title)
+    normalized = re.sub(r"\s+", " ", normalized).strip()
+    keywords.add(normalized)
+    return list(keywords)
 
 
-async def search_beatmapsets(keyword: str, source: str | None = None) -> list[Beatmapset]:
+async def search_beatmapsets(keyword: str | None = None, source: str | None = None) -> list[Beatmapset]:
     """
     Search for beatmapsets on osu! API via Ossapi.
 
@@ -95,8 +75,38 @@ def check_if_beatmapset_matches_song(bm: Beatmapset, song_list: list[str]) -> bo
         beatmap_title = beatmap_title[:beatmap_title.index("(")].strip()
     return beatmap_title in song_list
 
+def collect_all_keywords(anime_title: str, alt_titles: list[str]) -> list[str]:
+    titles = [anime_title] + alt_titles
+    keywords = []
+    seen = set()
+    for title in titles:
+        for kw in generate_search_keywords(title):
+            if kw not in seen:
+                keywords.append(kw)
+                seen.add(kw)
+    return keywords
+
+# so we dont accidentally spam osu! api with bunch of requests at once
+# we use semaphore to limit concurrent requests
+async def perform_multiple_search_calls(
+    keywords: list[str],
+    k: int
+) -> list[Beatmapset]:
+    semaphore = asyncio.Semaphore(k)
+
+    async def limited_search(keyword: str) -> list[Beatmapset]:
+        async with semaphore:
+            return await search_beatmapsets(keyword)
+
+    search_calls = [limited_search(keyword) for keyword in keywords]
+    results = await asyncio.gather(*search_calls)
+
+    # flatten list[list[Beatmapset]] → list[Beatmapset]
+    return [bm for batch in results for bm in batch]
+
 async def handle_beatmapset_search(
     anime_title: str,
+    anime_slug: str,
 ) -> list[int]:
     """
     Handle beatmapset search using generated keywords.
@@ -106,43 +116,36 @@ async def handle_beatmapset_search(
     Returns:
         List of unique beatmapset IDs
     """
-    formatted_title = format_anime_title_for_animethemes(anime_title)
     # fetch anime songs from AnimeThemes
-    song_list = await fetch_anime_songs(formatted_title)
+    song_list, alt_titles = await fetch_anime_songs_and_alternate_titles(anime_slug)
     song_list = [normalize_beatmap_title(song.lower()) for song in song_list]
 
+    keywords = collect_all_keywords(anime_title, alt_titles)
+    
+    beatmapsets_list = await perform_multiple_search_calls(keywords, k=5)
     unique_beatmapsets = set()
     sources = {}
 
-    # perform searches with generated keywords
-    keywords = generate_search_keywords(anime_title)
-    search_calls = [] # create coroutine list for concurrent searching, then await them all at once
-    for keyword in keywords:
-        search_calls.append(search_beatmapsets(keyword))
-    
-    beatmapsets_list = await asyncio.gather(*search_calls)
     for beatmapsets in beatmapsets_list:
-        for bm in beatmapsets:
-            if bm.source and check_if_beatmapset_matches_song(bm, song_list):
-                unique_beatmapsets.add(bm.id)
-                # add count of source to dict
-                if bm.source in sources:
-                    sources[bm.source] += 1
-                else:
-                    sources[bm.source] = 1
+        if beatmapsets.source and check_if_beatmapset_matches_song(beatmapsets, song_list):
+            unique_beatmapsets.add(beatmapsets.id)
+            # add count of source to dict
+            if beatmapsets.source in sources:
+                sources[beatmapsets.source] += 1
+            else:
+                sources[beatmapsets.source] = 1
 
     sources = dict(sorted(sources.items(), key=lambda item: item[1], reverse=True))
     # search again using sources only, but this is usually just 1-3 extra searches on average
     # you might be wondering why count >= 3? well, if a source appears multiple times, it's more likely to be relevant and its a workaround for beatmaps of cover songs of the anime with a different source.
-    search_calls = []
+    sources_list = []
     for source, count in sources.items():
         if count >= 3:
-            search_calls.append(search_beatmapsets(anime_title, source=source))
+            sources_list.append(source)
     
-    beatmapsets_list = await asyncio.gather(*search_calls)
+    beatmapsets_list = await perform_multiple_search_calls(sources_list, k=5)
     for beatmapsets in beatmapsets_list:
-        for bm in beatmapsets:
-            unique_beatmapsets.add(bm.id)
+            unique_beatmapsets.add(beatmapsets.id)
 
     beatmapset_ids = list(unique_beatmapsets)
     return beatmapset_ids

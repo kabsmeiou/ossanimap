@@ -49,7 +49,7 @@ async def create_pack(request: PackCreateRequest):
     #     )
     pack_creation_queue.enqueue(
         generate_pack_job,
-        failure_ttl=0,
+        failure_ttl=10,
         job_id=job_id,
         anime_id=request.anime.id,
         anime_name=request.anime.name,

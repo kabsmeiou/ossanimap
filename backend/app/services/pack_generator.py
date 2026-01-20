@@ -83,7 +83,7 @@ class PackGenerator:
             # already obtains the needed info so we just pass it directly
             # from the client
             # Step 2: Search for beatmapsets
-            beatmapset_ids = await self._search_beatmapsets(anime.name)
+            beatmapset_ids = await self._search_beatmapsets(anime.name, anime.slug)
 
             # Step 3: Create Pack object
             pack: PackCreate = self._create_pack(
@@ -114,7 +114,8 @@ class PackGenerator:
     
     async def _search_beatmapsets(
         self,
-        anime_title: str,
+        anime_name: str,
+        anime_slug: str,
         status: List[int] = [1],
         mode: List[int] = [0]
     ) -> List[Beatmapset]:
@@ -134,14 +135,14 @@ class PackGenerator:
             PackGenerationError: If search fails
         """
         try:
-            beatmapsets = await handle_beatmapset_search(anime_title)
+            beatmapsets = await handle_beatmapset_search(anime_name, anime_slug)
             if not beatmapsets:
-                raise PackGenerationError(anime_name=anime_title, code=0, message="No beatmapsets found")
+                raise PackGenerationError(anime_name=anime_name, code=0, message="No beatmapsets found")
             return beatmapsets
         except PackGenerationError:
             raise
         except Exception as e:
-            raise PackGenerationError(anime_name=anime_title, message=f"Failed to search beatmapsets: {str(e)}", code=-1) from e
+            raise PackGenerationError(anime_name=anime_name, message=f"Failed to search beatmapsets: {str(e)}", code=-1) from e
     
     def _create_pack(
         self,
