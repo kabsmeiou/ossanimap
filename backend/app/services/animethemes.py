@@ -88,12 +88,11 @@ async def _send_query(url: str, params: dict | None = None) -> dict:
 
     return d
 
-async def fetch_anime_songs(anime_title: str) -> list[str]:
-    formatted_title = format_anime_title_for_animethemes(anime_title)
+async def fetch_anime_songs_and_alternate_titles(anime_slug: str) -> tuple[list[str], list[str]]:
     params = {
-        "include": "animethemes.song"
+        "include": "animethemes.song,animesynonyms",
     }
-    url = f"{ANIMETHEMES_URL.rstrip('/')}/anime/{formatted_title}"
+    url = f"{ANIMETHEMES_URL.rstrip('/')}/anime/{anime_slug}"
     data = await _send_query(url, params=params)
     anime = data.get("anime", {})
     songs = anime.get("animethemes", [])
@@ -102,8 +101,13 @@ async def fetch_anime_songs(anime_title: str) -> list[str]:
         for s in songs
         if isinstance(s.get("song"), dict) and "title" in s["song"]
     ]
-    logger.info("Fetched %d songs for anime '%s'", len(song_titles), anime_title)
-    return song_titles
+    synonyms = anime.get("animesynonyms", [])
+    alt_titles = [
+        syn["text"]
+        for syn in synonyms
+        if "text" in syn and syn["type"] != "Native"
+    ]
+    return song_titles, alt_titles
 
 
 async def search_anime_by_name(anime_name: str) -> list[Anime]:
