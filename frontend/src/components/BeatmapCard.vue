@@ -7,7 +7,7 @@
         <!-- Future place for mode icons -->
       </div>
       <!-- use pack.image_link for the cover image and ensure to center -->
-      <img v-if="pack.image_link" :src="pack.image_link" alt="Anime cover image" loading="lazy"/>
+      <img v-if="pack.image_link" :src="pack.image_link" alt="Anime cover image" loading="lazy" class="cover-image"/>
     </div>
     <div class="content">
       <div class="header">
@@ -306,6 +306,12 @@ const formatNumber = (num) => {
     rgba(0, 0, 0, 0.80),
     transparent
   );
+}
+
+.cover-image {
+  width: 160px;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
 }
 
 .modes-overlay {
