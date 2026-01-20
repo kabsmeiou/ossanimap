@@ -114,7 +114,6 @@ const handleSearchKeyPress = async (event) => {
   }
 }
 
-const query_cursor = ref(null)
 const lastQuery = ref("")
 
 const searchPack = async () => {
@@ -122,7 +121,7 @@ const searchPack = async () => {
 
   // reset pagination when search text changes
   if (q !== lastQuery.value) {
-    query_cursor.value = null
+    cursor.value = null
     packs.value = []
     lastQuery.value = q
   }
@@ -130,8 +129,9 @@ const searchPack = async () => {
   try {
     loading.value = true
     error.value = null
-    const qData = await api.packs.search(query_cursor.value, q)
-    query_cursor.value = qData.next_cursor
+    const qData = await api.packs.search(cursor.value, q)
+    console.log("Search results:", qData)
+    cursor.value = qData.next_cursor
     packs.value = qData.items
   } catch (err) {
     error.value = err?.message ?? String(err)
@@ -151,11 +151,8 @@ const debouncedSearch = () => {
 
   const searchQuery = query.value.trim()
 
-  // reset pagination when query changes
-  if (searchQuery !== lastQuery.value) {
-    query_cursor.value = null
-    lastQuery.value = searchQuery
-  }
+  cursor.value = null // reset cursor on new search
+
   if (searchQuery.length >= 3) {
     showSearchIndicator.value = true
     showSuggestions.value = false
@@ -219,7 +216,8 @@ const stopJobPolling = () => {
 }
 
 const appendNewPack = (pack) => {
-  packs.value = [pack, ...packs.value]
+  // remove last value from packs.value
+  packs.value = [pack, ...packs.value.slice(0, -1)]
 }
 
 const fetchNewPack = async (packId) => {
@@ -227,6 +225,7 @@ const fetchNewPack = async (packId) => {
     const id = parseInt(packId)
     const pack = await api.packs.get(id)
     appendNewPack(pack)
+    cursor.value = null // reset cursor to force refetch
   } catch (err) {
     console.error('Failed to fetch new pack:', err)
   }
@@ -295,6 +294,7 @@ const handleSuggestionClick = async (suggestion) => {
     pollJobStatus(response.job_id)
     showSuggestions.value = false
     query.value = ''
+    cursor.value = null
   } catch (err) {
     console.error('Failed to submit request:', err)
     alert(err)
@@ -391,7 +391,6 @@ const handleScroll = async () => {
   isLoadingMore.value = true
   try {
     const newData = await api.packs.list(cursor.value)
-    console.log('Fetched more packs with cursor:', cursor.value, newData)
     cursor.value = newData.next_cursor
     packs.value = [...packs.value, ...newData.items]
   } finally {
