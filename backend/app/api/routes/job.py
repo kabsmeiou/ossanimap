@@ -16,11 +16,12 @@ router = APIRouter(
 async def get_job_status(job_id: str):
     try:
         job = Job.fetch(job_id, connection=redis_sync)
-        
+        job_status = job.get_status()
+        result = job.return_value()
         return {
             "job_id": job_id,
-            "status": job.get_status(),
-            "result": job.result if job.is_finished else None,
+            "status": job_status,
+            "result": result,
             "enqueued_at": job.enqueued_at,
             "ended_at": job.ended_at
         }

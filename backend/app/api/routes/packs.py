@@ -71,7 +71,8 @@ async def create_pack(request: PackCreateRequest):
 async def list_packs(
     session: AsyncSession = Depends(get_session),
     cursor: Optional[str] = None,
-    limit: int = 6
+    limit: int = 10,
+    q: str = ""
 ):
     """
     List all available beatmap packs.
@@ -82,7 +83,8 @@ async def list_packs(
     packs_db, next_cursor = await list_packs_paginated(
         session=session, 
         cursor=cursor, 
-        limit=limit
+        limit=limit,
+        query=q
     )
     packs = [packdb_to_packschema(p) for p in packs_db]
     return {

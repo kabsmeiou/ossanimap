@@ -11,7 +11,11 @@ from app.services.osu import handle_beatmapset_search
 from app.db.session import AsyncSessionLocal
 from app.db.services import save_pack
 
-logger = logging.getLogger("uvicorn.error")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 # -4 database save error
 # -3 json decode error from animethemes
@@ -101,6 +105,7 @@ class PackGenerator:
                 await session.rollback()
                 logger.error(f"Database save error for pack {pack.name}: {str(e)}")
                 raise PackGenerationError(anime_name=anime.name, code=-4, message="Database save error") from e
+            return p.id
         except PackGenerationError:
             raise
         except Exception as e:

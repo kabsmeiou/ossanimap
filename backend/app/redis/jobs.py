@@ -8,7 +8,7 @@ from app.db.session import AsyncSessionLocal
 from app.db.services import get_global_stats
 
 # Log the exception
-logger = logging.getLogger("uvicorn.error")
+logger = logging.getLogger(__name__)
 
 
 def generate_pack_job(
@@ -31,13 +31,15 @@ def generate_pack_job(
         slug=anime_slug,
         image_link=anime_image_link
     )
-    asyncio.run(
+    pack_id = asyncio.run(
         pack_generator.generate_pack_from_anime(
             anime=anime,
             status=status,
             mode=mode
         )
     )
+    logger.info(f"Pack generation job completed for anime {anime.name}, pack ID: {pack_id}")
+    return pack_id
 
 async def stats_updater():
     """

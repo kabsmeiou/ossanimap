@@ -49,10 +49,16 @@ async def list_packs(session):
     result = (await session.scalars(stmt)).all()
     return result
 
-async def list_packs_paginated(session, cursor: str, limit: int) -> tuple[list[PackDB], str | None]:
+async def list_packs_paginated(session, cursor: str, limit: int, query: str) -> tuple[list[PackDB], str | None]:
     """Lists packs in a paginated manner."""
     # if cursor is provided, fetch packs with ID greater than cursor, else start from beginning
     stmt = select(PackDB).order_by(PackDB.created_at.desc(), PackDB.id.desc())
+
+    if query:
+        stmt = stmt.where(
+            PackDB.name.ilike(f"%{query}%"),
+        )
+        
     if cursor:
         last_created_at, last_id = decode_cursor(cursor)
         stmt = stmt.where(
