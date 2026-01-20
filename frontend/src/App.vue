@@ -30,6 +30,9 @@ const loadingAnimethemes = ref(true)
 const chimuHealthy = ref(true)
 const animethemesHealthy = ref(true)
 
+// cursor
+const cursor = ref(null)
+
 // stats
 const globalStats = ref({
   total_packs: 0,
@@ -111,32 +114,62 @@ const handleSearchKeyPress = async (event) => {
   }
 }
 
-// Debounced search function
-const debouncedSearch = () => {
-  if (rateLimitError.value) {
-    return
+const query_cursor = ref(null)
+const lastQuery = ref("")
+
+const searchPack = async () => {
+  const q = query.value.trim()
+
+  // reset pagination when search text changes
+  if (q !== lastQuery.value) {
+    query_cursor.value = null
+    packs.value = []
+    lastQuery.value = q
   }
-  
-  // Clear existing timer
+
+  try {
+    loading.value = true
+    error.value = null
+    const qData = await api.packs.search(query_cursor.value, q)
+    query_cursor.value = qData.next_cursor
+    packs.value = qData.items
+  } catch (err) {
+    error.value = err?.message ?? String(err)
+    console.error("Failed to search packs:", err)
+  } finally {
+    loading.value = false
+  }
+}
+
+const debouncedSearch = () => {
+  if (rateLimitError.value) return
+
   if (searchDebounceTimer) {
     clearTimeout(searchDebounceTimer)
     searchDebounceTimer = null
   }
-  
+
   const searchQuery = query.value.trim()
-  
-  // Only search anime API if query is 3+ characters
+
+  // reset pagination when query changes
+  if (searchQuery !== lastQuery.value) {
+    query_cursor.value = null
+    lastQuery.value = searchQuery
+  }
   if (searchQuery.length >= 3) {
-    // Don't auto-search, only show indicator
-    // User must press Enter to actually search
     showSearchIndicator.value = true
     showSuggestions.value = false
   } else {
-    // Clear suggestions if query is too short
     showSuggestions.value = false
     searchSuggestions.value = []
     showSearchIndicator.value = false
+    // optional: clear results when query is too short
+    // packs.value = []
+    // query_cursor.value = null
   }
+  searchDebounceTimer = setTimeout(() => {
+    searchPack()
+  }, 500)
 }
 
 // Fetch search suggestions from anime API
@@ -185,6 +218,21 @@ const stopJobPolling = () => {
   isPolling = false
 }
 
+const appendNewPack = (pack) => {
+  packs.value = [pack, ...packs.value]
+}
+
+const fetchNewPack = async (packId) => {
+  try {
+    const id = parseInt(packId)
+    const pack = await api.packs.get(id)
+    appendNewPack(pack)
+  } catch (err) {
+    console.error('Failed to fetch new pack:', err)
+  }
+}
+
+// TODO. improve ui when multiple jobs are sent by the same user
 const pollJobStatus = (jobId) => {
   // if already polling this job, do nothing
   if (isPolling && pollingJobId === jobId) return
@@ -199,14 +247,17 @@ const pollJobStatus = (jobId) => {
     try {
       const data = await api.job.getStatus(jobId)
       currentJobStatus.value = data.status
-
-      if (data.status === 'finished' || data.status === 'failed') {
+      if (data.status === 'finished') {
+        await fetchNewPack(data.result)
         stopJobPolling()
-        await fetchPacks()
+        scheduleClearJobStatus()
+        return
+      } else if (data.status === 'failed') {
+        alert(`Pack creation failed: ${data.error.message || 'Unknown error'}`)
+        stopJobPolling()
         scheduleClearJobStatus()
         return
       }
-
       // schedule next tick after request completes (prevents overlap)
       jobPollTimeout = setTimeout(tick, 1000)
     } catch (err) {
@@ -296,6 +347,7 @@ onMounted(() => {
   pollGlobalStats()
   document.addEventListener('click', handleClickOutside)
   document.addEventListener("visibilitychange", onVisibilityChange)
+  window.addEventListener("scroll", handleScroll)
 })
 
 const onVisibilityChange = () => {
@@ -317,11 +369,37 @@ onUnmounted(() => {
   }
   document.removeEventListener('click', handleClickOutside)
   document.removeEventListener("visibilitychange", onVisibilityChange)
+  window.removeEventListener("scroll", handleScroll)
   // Clear debounce timer on unmount
   if (searchDebounceTimer) {
     clearTimeout(searchDebounceTimer)
   }
 })
+
+// refetch using cursor when scrolled to bottom (TODO. improve pagination later)
+const isLoadingMore = ref(false)
+
+const hasCursor = (c) => !!c && c !== "null" && c !== "undefined"
+
+const handleScroll = async () => {
+  const nearBottom = window.innerHeight + window.scrollY >= document.body.offsetHeight - 500
+
+  if (!nearBottom) return
+  if (isLoadingMore.value) return
+  if (!hasCursor(cursor.value)) return
+
+  isLoadingMore.value = true
+  try {
+    const newData = await api.packs.list(cursor.value)
+    console.log('Fetched more packs with cursor:', cursor.value, newData)
+    cursor.value = newData.next_cursor
+    packs.value = [...packs.value, ...newData.items]
+  } finally {
+    isLoadingMore.value = false
+  }
+}
+
+
 
 // Fetch packs from the backend
 const fetchPacks = async () => {
@@ -329,8 +407,10 @@ const fetchPacks = async () => {
   error.value = null
   
   try {
-    const data = await api.packs.list()
-    packs.value = data
+    // {next_cursor: str, items: Pack[]} 
+    const data = await api.packs.list(cursor.value)
+    cursor.value = data.next_cursor
+    packs.value = data.items
   } catch (err) {
     error.value = err.message
     console.error('Failed to fetch packs:', err)
@@ -340,15 +420,7 @@ const fetchPacks = async () => {
 }
 
 const filtered = computed(() => {
-  const q = query.value.trim().toLowerCase()
-  let list = packs.value.filter(p => {
-    if (!q) return true
-    return (
-      p.name.toLowerCase().includes(q) ||
-      p.anime_title.toLowerCase().includes(q) ||
-      (p.synopsis && p.synopsis.toLowerCase().includes(q))
-    )
-  })
+  let list = packs.value
   return list
 })
 </script>
@@ -411,7 +483,7 @@ const filtered = computed(() => {
                 <span>Searching...</span>
               </div>
               <div v-else>
-                <div class="suggestions-header">Request for packs</div>
+                <div class="suggestions-header">Request for packs <span class="credit">Powered by Animethemes</span></div>
                 <ul class="suggestions-list">
                   <li 
                     v-for="suggestion in searchSuggestions" 
@@ -584,12 +656,30 @@ const filtered = computed(() => {
             :disabled="chimuHealthy === false" 
           />
         </section>
+        <!-- Loading more indicator -->
+        <div v-if="isLoadingMore" class="loading-more">
+            (˶ᴗ_ᴗ˵) ᶻ 𝗓 𐰁 Loading more packs...
+        </div>
       </main>
     </div>
   </div>
 </template>
 
 <style scoped>
+
+.loading-more {
+  text-align: center;
+  padding: 16px;
+  color: #4a5568;
+  font-size: 14px;
+}
+
+.credit {
+  font-size: 8px;
+  font-weight: 500;
+  color: #a0aec0;
+  margin-left: 8px;
+}
 
 .page {
   min-height: 100vh;

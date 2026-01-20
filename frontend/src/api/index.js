@@ -70,9 +70,19 @@ export const api = {
     /**
      * Get all packs
      * @returns {Promise<Array>} List of packs
+     * @param {string} cursor - Pagination cursor
      */
-    list: () => request('/packs/'),
-
+    list: (cursor) => {
+      const params = new URLSearchParams()
+      if (cursor) params.set("cursor", cursor)
+      return request(`/packs/?${params.toString()}`)
+    },
+    search: (cursor, query) => {
+      const params = new URLSearchParams()
+      if (cursor) params.set("cursor", cursor)
+      if (query) params.set("q", query)
+      return request(`/packs/?${params.toString()}`)
+    },
     /**
      * Get a specific pack by ID
      * @param {number} id - Pack ID
