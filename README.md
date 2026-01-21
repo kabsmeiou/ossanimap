@@ -34,7 +34,12 @@ git clone https://github.com/kabsmeiou/ossanimap.git
 cd ossanimap
 ```
 
-Once cloned, you must open another terminal window. This is important to run both the backend and the frontend servers.
+### With Docker
+The easiest way to run the backend is by using docker. You may run on your cli:
+```bash
+docker compose up -d --build
+```
+afterwards, head over to the [frontend setup](#step-3a-setting-up-the-frontend)
 
 ### Step 2A: Setting up the backend
 
@@ -60,10 +65,10 @@ Run the redis-server in another terminal window with:
 ```bash
 redis-server
 ```
-This is used for caching. Make sure that both the sync and async *Redis* instance is initiated with **host=localhost** at app/redis/queue.py
+This is used for caching. Also, for this setup (no need if running with docker), make sure that both the sync and async *Redis* instance is initiated with **host=localhost** at app/redis/queue.py
 ```python
-redis_async = AsyncRedis(host="redis", port=6379)
-redis_sync = Redis(host="redis", port=6379, decode_responses=False)
+redis_async = AsyncRedis(host="localhost", port=6379)
+redis_sync = Redis(host="localhost", port=6379, decode_responses=False)
 ```
 
 Now, since the pack_generation is a job that executes on the background, it needs an rq worker to start. You must open another terminal window and run the command below:
