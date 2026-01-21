@@ -427,7 +427,7 @@ const filtered = computed(() => {
 <template>
   <div class="page">
     <div class="links">
-      <a class="link-text" href="https://github.com/ossanimap" target="_blank" rel="noopener noreferrer">Github</a>
+      <a class="link-text" href="https://github.com/kabsmeiou/ossanimap" target="_blank" rel="noopener noreferrer">Github</a>
       <a class="link-text" href="https://api.kabsmeiou.space/docs" target="_blank" rel="noopener noreferrer">API Docs</a>
       <a class="link-text" href="https://catboy.best" target="_blank" rel="noopener noreferrer">Chimu</a>
       <a class="link-text" href="https://animethemes.moe" target="_blank" rel="noopener noreferrer">Animethemes</a>
