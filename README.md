@@ -40,10 +40,6 @@ Once cloned, you must open another terminal window. This is important to run bot
 
 There are two ways to set up the backend: using **uv** or using **pip**.
 
-```
-Note: always create a virtual environment before installing dependencies!
-```
-
 #### Option 1: Using uv (assuming you have uv installed if not, visit https://docs.astral.sh/uv/getting-started/installation/)
 ```bash
 cd backend
@@ -56,6 +52,29 @@ cd backend
 python3 -m venv venv
 source venv/bin/activate  # On Windows use `venv\Scripts\activate`
 pip install -r requirements.txt
+```
+
+### Step 2B: Running the rq worker and redis-server
+
+Run the redis-server in another terminal window with:
+```bash
+redis-server
+```
+This is used for caching. Make sure that both the sync and async *Redis* instance is initiated with **host=localhost** at app/redis/queue.py
+```python
+redis_async = AsyncRedis(host="redis", port=6379)
+redis_sync = Redis(host="redis", port=6379, decode_responses=False)
+```
+
+Now, since the pack_generation is a job that executes on the background, it needs an rq worker to start. You must open another terminal window and run the command below:
+```bash
+rq worker pack_queue
+```
+This will make the user listen to the queue defined at redis/queue.py. By default, it listens to 'default'.
+
+On the occasion that this command doesn't work and the error message pertains to fork()(it doesn't work on macOS and a workaround is needed), you must run the command below before initiating the rq worker
+```bash
+export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
 ```
 
 ### Step 2B: Running the backend server
