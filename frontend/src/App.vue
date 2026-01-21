@@ -426,9 +426,15 @@ const filtered = computed(() => {
 
 <template>
   <div class="page">
+    <div class="links">
+      <a class="link-text" href="https://github.com/ossanimap" target="_blank" rel="noopener noreferrer">Github</a>
+      <a class="link-text" href="https://api.kabsmeiou.space/docs" target="_blank" rel="noopener noreferrer">API Docs</a>
+      <a class="link-text" href="https://catboy.best" target="_blank" rel="noopener noreferrer">Chimu</a>
+      <a class="link-text" href="https://animethemes.moe" target="_blank" rel="noopener noreferrer">Animethemes</a>
+    </div>
     <div class="container">
       <header class="top">
-        <div class="brand">
+        <div class="brand"> 
           <div class="logo">
             <!-- use favicon.ico -->
             <img src="/favicon.ico" alt="ossanimap Logo" width="34" height="34" />
@@ -666,6 +672,34 @@ const filtered = computed(() => {
 
 <style scoped>
 
+.links {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  gap: 12px;
+  z-index: 200;
+}
+
+.link-text{
+  font-size: 14px;
+  color: #4a5568;
+  text-decoration: none;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+  border-radius: 1rem;
+  padding: 4px 8px;
+}
+.link-text:hover {
+  background-color: #c5cbe2;
+}
+@media screen and (max-width: 1100px) {
+  .links {
+    padding: 1rem;
+    position: static;
+    justify-content: center;
+  }
+}
 .loading-more {
   text-align: center;
   padding: 16px;
