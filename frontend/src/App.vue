@@ -673,7 +673,7 @@ const filtered = computed(() => {
 <style scoped>
 
 .links {
-  position: fixed;
+  position: absolute;
   top: 16px;
   right: 16px;
   display: flex;
