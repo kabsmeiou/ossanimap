@@ -84,6 +84,11 @@ async def get_pack_by_id(session, pack_id):
     result = (await session.scalars(stmt)).first()
     return result
 
+async def get_beatmapset_list(session, pack_id):
+    stmt = select(PackDB.beatmapset_ids).where(PackDB.id == pack_id)
+    result = (await session.scalars(stmt)).first()
+    return result
+
 async def increment_pack_downloads(session, pack_id):
     """Increments the download count for a specific pack."""
     pack = await get_pack_by_id(session, pack_id)
