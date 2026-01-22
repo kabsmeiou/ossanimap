@@ -42,7 +42,6 @@ class PackCreateRequest(BaseModel):
     status: List[int] = Field(default=[1], description="Beatmap status: 1=ranked, 2=loved")
     mode: Optional[List[int]] = Field(default=[0], description="Game mode: 0=standard, 1=taiko, 2=catch, 3=mania, -1=all")
 
-
 class PackResponse(BaseModel):
     """
     Response model for pack operations.

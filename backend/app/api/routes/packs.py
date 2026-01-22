@@ -1,15 +1,17 @@
-from typing import Optional
+from typing import Optional, List
 from fastapi import APIRouter, HTTPException, status, Depends
 import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.services import list_packs_paginated, delete_pack as delete_pack_from_db, increment_pack_downloads, get_pack_by_id
+from app.db.services import list_packs_paginated, delete_pack as delete_pack_from_db, increment_pack_downloads, get_pack_by_id, get_beatmapset_list
 from app.schemas.pack import Pack, PackCreateRequest, PackResponse, PaginatedResponse
+from app.schemas.osu import Beatmapset
 from app.redis.jobs import generate_pack_job
 from app.utils.format import packdb_to_packschema
 from app.db.session import get_session
 from app.redis.queue import pack_creation_queue
 from app.services.pack_generator import pack_generator
+from app.services.osu import fetch_beatmapsets
 
 
 router = APIRouter(
@@ -63,6 +65,12 @@ async def create_pack(request: PackCreateRequest):
         message=f"Pack for {request.anime.name} is being generated",
         job_id=job_id
     )
+
+@router.get("/{pack_id}/beatmapsets", response_model=List[Beatmapset])
+async def get_beatmapset_metadata(pack_id: int, session: AsyncSession = Depends(get_session)):
+    beatmapset_ids = await get_beatmapset_list(session, pack_id)
+    bmsets: List[Beatmapset] = await fetch_beatmapsets(beatmapset_ids=beatmapset_ids)
+    return bmsets
 
 # TODO. create route for fetching beatmap ids for a pack_id. 
 # this is to reduce the payload size of the list_packs and get_pack endpoints

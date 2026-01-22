@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 import logging
 import asyncio
 import re
+from typing import List
 
 from app.utils.format import format_anime_title_for_animethemes
 from app.utils.string import normalize_beatmap_title
@@ -19,7 +20,7 @@ api = OssapiAsync(
 
 logger = logging.getLogger("uvicorn.error")
 
-async def fetch_beatmapset(beatmapset_id: int) -> Beatmapset:
+async def fetch_beatmapsets(beatmapset_ids: List[int]) -> List[Beatmapset]:
     """
     Fetch beatmapset data from osu! API via Ossapi.
 
@@ -28,24 +29,24 @@ async def fetch_beatmapset(beatmapset_id: int) -> Beatmapset:
     Returns:
         Beatmapset data as a dictionary
     """
-    try:
-        bm_data = await api.beatmapset(beatmapset_id)
-        beatmapset = Beatmapset.model_validate(bm_data, from_attributes=True)
-    except Exception as e:
-        logger.error(f"Error fetching beatmapset {beatmapset_id}: {str(e)}")
-        raise RuntimeError(f"Failed to fetch beatmapset {beatmapset_id}") from e
-    logger.info(f"Fetched beatmapset: {beatmapset}")
-    return beatmapset
+    bmsets: List[Beatmapset] = []
+    for id in beatmapset_ids:
+        try:
+            bm_data = await api.beatmapset(id)
+            beatmapset = Beatmapset.model_validate(bm_data, from_attributes=True)
+            bmsets.append(beatmapset)
+        except Exception as e:
+            logger.error(f"Error fetching beatmapset {id}: {str(e)}")
+            raise RuntimeError(f"Failed to fetch beatmapset {id}") from e
+    return bmsets
 
-
-def generate_search_keywords(anime_title: str) -> list[str]:
+def generate_search_keywords(anime_title: str) -> List[str]:
     keywords = set()
     keywords.add(anime_title.strip())
     normalized = re.sub(r"[^\w\s]", " ", anime_title)
     normalized = re.sub(r"\s+", " ", normalized).strip()
     keywords.add(normalized)
     return list(keywords)
-
 
 async def search_beatmapsets(keyword: str | None = None, source: str | None = None) -> list[Beatmapset]:
     """
