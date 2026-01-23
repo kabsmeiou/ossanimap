@@ -2,6 +2,7 @@ from typing import Optional, List
 from fastapi import APIRouter, HTTPException, status, Depends
 import logging
 from sqlalchemy.ext.asyncio import AsyncSession
+import json
 
 from app.db.services import list_packs_paginated, delete_pack as delete_pack_from_db, increment_pack_downloads, get_pack_by_id, get_beatmapset_list
 from app.schemas.pack import Pack, PackCreateRequest, PackResponse, PaginatedResponse
@@ -12,6 +13,7 @@ from app.db.session import get_session
 from app.redis.queue import pack_creation_queue
 from app.services.pack_generator import pack_generator
 from app.services.osu import fetch_beatmapsets
+from app.redis.queue import redis_sync
 
 
 router = APIRouter(
@@ -68,8 +70,18 @@ async def create_pack(request: PackCreateRequest):
 
 @router.get("/{pack_id}/beatmapsets", response_model=List[Beatmapset])
 async def get_beatmapset_metadata(pack_id: int, session: AsyncSession = Depends(get_session)):
-    beatmapset_ids = await get_beatmapset_list(session, pack_id)
-    bmsets: List[Beatmapset] = await fetch_beatmapsets(beatmapset_ids=beatmapset_ids)
+    # just cache for everyone so we dont have to rehit osu! every click on a pack
+    cached = redis_sync.get(str(pack_id))
+    if cached is None:
+        beatmapset_ids = await get_beatmapset_list(session, pack_id)
+        bmsets = await fetch_beatmapsets(beatmapset_ids)  # List[Beatmapset], needs to be dumpd each
+        redis_sync.set(
+            str(pack_id),
+            json.dumps([b.model_dump() for b in bmsets])
+        )
+    else:
+        data = json.loads(cached.decode('utf-8'))
+        bmsets = [Beatmapset.model_validate(x) for x in data]
     return bmsets
 
 # TODO. create route for fetching beatmap ids for a pack_id. 
