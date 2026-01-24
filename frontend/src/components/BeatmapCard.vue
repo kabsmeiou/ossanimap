@@ -1,5 +1,6 @@
 <template>
   <article class="card" @mouseenter="mouseHover = true" @mouseleave="mouseHover = false">
+    <router-link to="/pack/{id}"></router-link>
     <div class="card-content">
     <div class="cover" :style="coverStyle">
       <div class="gradient-overlay"></div>
@@ -12,7 +13,9 @@
     <div class="content">
       <div class="header">
         <div class="title-section">
-          <h3 class="pack-name">{{ pack.name }}</h3>
+          <router-link :to="{ name: 'PackDetail', params: { packId: pack.id } }" class="pack-name">
+              {{ pack.name }}
+          </router-link>
           <span class="anime-badge">{{ pack.anime_title }}</span>
         </div>
       </div>
@@ -22,6 +25,7 @@
             <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
           </svg>
           <span>{{ pack.beatmapset_count }} beatmapset{{ pack.beatmapset_count !== 1 ? 's' : '' }}</span>
+
         </div>
         <div class="stat downloads">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -77,9 +81,8 @@
 <script setup>
 import { ref, computed } from 'vue'
 import DownloadConfirmModal from './DownloadConfirmModal.vue'
-import JSZip from 'jszip';
-import { saveAs } from 'file-saver'; // Optional helper, or use <a> tag
 import api from '../api'
+import { usePackDownload } from '@/composables/usePackDownload'
 
 const props = defineProps({
   pack: { type: Object, required: true },
@@ -87,168 +90,38 @@ const props = defineProps({
 })
 
 const mouseHover = ref(false)
-const showModal = ref(false)
-const isDownloading = ref(false)
-const downloadProgress = ref({ current: 0, total: 0, downloadedMB: 0 })
-const rateLimitWarning = ref('')
 
-// Check rate limits before download
-const checkRateLimits = async () => {
-  try {
-    const response = await fetch('https://catboy.best/api/ratelimits')
-    if (!response.ok) throw new Error('Failed to fetch rate limits')
-    
-    const data = await response.json()
-    const remaining = data.daily.remaining.downloads
-    const total = data.daily.limit.downloads
-    const needed = props.pack.beatmapset_ids.length
-    
-    if (remaining === 0) {
-      return {
-        allowed: false,
-        message: '⚠️ Daily download quota exceeded. Please try again tomorrow.'
-      }
-    }
-    
-    if (remaining < needed) {
-      return {
-        allowed: false,
-        message: `⚠️ Insufficient daily downloads remaining. You need ${needed} downloads but only have ${remaining} remaining (${total} daily limit).`
-      }
-    }
-    
-    if (remaining < needed * 2) {
-      return {
-        allowed: true,
-        warning: `⚠️ Warning: Only ${remaining} downloads remaining today (${total} daily limit). This pack needs ${needed} downloads.`
-      }
-    }
-    
-    return { allowed: true }
-  } catch (err) {
-    console.error('Failed to check rate limits:', err)
-    // Allow download to proceed if rate limit check fails
-    return { allowed: true }
-  }
-}
-
-const handleDownloadClick = async () => {
-  // Don't allow download if service is unreachable
-  if (props.disabled) {
-    return
-  }
-  
-  // Check rate limits first
-  const rateLimitCheck = await checkRateLimits()
-  
-  if (!rateLimitCheck.allowed) {
-    alert(rateLimitCheck.message)
-    return
-  }
-  
-  if (rateLimitCheck.warning) {
-    const proceed = confirm(rateLimitCheck.warning + '\n\nDo you want to proceed?')
-    if (!proceed) return
-  }
-  
-  // Check if user has opted to skip the modal for this session
-  const skipModal = sessionStorage.getItem('skipDownloadModal') === 'true'
-  
-  if (skipModal) {
-    // Proceed directly to download
-    handleDownload()
-  } else {
-    // Show confirmation modal
-    showModal.value = true
-  }
-}
-
-// try no video download first by adding 'n' to the download URL'
-// e.g., `https://catboy.best/d/${id}n` catch "This set does not exist." error
-// then fallback to normal download URL
-const downloadWithoutVideo = async (id) => {
-  const tryFetch = async (url) => {
-    const res = await fetch(url)
-    if (!res.ok) throw res
-    return res.blob()
-  }
-
-  try {
-    return await tryFetch(`https://catboy.best/d/${id}n`)
-  } catch (err) {
-    if (err instanceof Response && err.status !== 404) {
-      throw new Error(`No-video download failed (${err.status})`)
-    }
-
-    console.warn(`No-video not available for ${id}, falling back.`)
-    return await tryFetch(`https://catboy.best/d/${id}`)
-  }
-}
-
-const handleDownload = async () => {
-  // Close the modal
-  showModal.value = false
-  
-  const ids = props.pack.beatmapset_ids;
-
-  isDownloading.value = true
-  downloadProgress.value = { current: 0, total: ids.length, downloadedMB: 0 }
-
-  const zip = new JSZip();
-  const folder = zip.folder("beatmap_pack");
-
-  // Use Promise.all to fetch files in parallel
-  const downloadPromises = ids.map(async (id, index) => {
+// Use the reusable composable for download logic
+const {
+  showModal,
+  isDownloading,
+  downloadProgress,
+  handleDownloadClick: _handleDownloadClick,
+  handleDownload: _handleDownload
+} = usePackDownload({
+  incrementDownloadCount: async (packId) => {
     try {
-      const blob = await downloadWithoutVideo(id);
-      // Add to zip: filename usually comes from headers, 
-      // but you can default to id.osz
-      folder.file(`${id}.osz`, blob);
-      // Update progress
-      downloadProgress.value.current += 1
-      // Add blob size to total downloaded MB
-      downloadProgress.value.downloadedMB += blob.size / (1024 * 1024)
+      await api.packs.incrementDownloads(packId)
     } catch (err) {
-      console.error(`Error downloading map ${id}:`, err);
-      // Still increment progress even on error
-      downloadProgress.value.current += 1
+      console.error('Failed to increment download count:', err)
     }
-  });
-
-  await Promise.all(downloadPromises);
-
-  // Generate the ZIP and trigger a single download
-  const content = await zip.generateAsync({ type: "blob" });
-  saveAs(content, `${props.pack.name || 'osu_pack'}.zip`);
-  
-  // Reset state
-  isDownloading.value = false
-  downloadProgress.value = { current: 0, total: 0, downloadedMB: 0 }
-
-  // Increment download count in backend
-  incrementDownloadCount();
-
-  // refresh data
-  getPackData();
-};
-
-const getPackData = async () => {
-  try {
-    const updatedPack = await api.packs.get(props.pack.id)
-    // Update pack data
-    props.pack.downloads = updatedPack.downloads
-  } catch (err) {
-    console.error('Failed to refresh pack data:', err)
+  },
+  refreshPackData: async (packId) => {
+    try {
+      const updatedPack = await api.packs.get(packId)
+      // Note: this won't reactively update props, but the store or parent should handle refresh
+      props.pack.downloads = updatedPack.downloads
+    } catch (err) {
+      console.error('Failed to refresh pack data:', err)
+    }
   }
-}
+})
 
-const incrementDownloadCount = async () => {
-  try {
-    await api.packs.incrementDownloads(props.pack.id)
-  } catch (err) {
-    console.error('Failed to increment download count:', err)
-  }
-}
+// Wrap the composable's handleDownloadClick to pass pack and disabled
+const handleDownloadClick = () => _handleDownloadClick({ disabled: props.disabled, pack: props.pack })
+
+// Wrap handleDownload so modal @confirm can call it without args
+const handleDownload = () => _handleDownload(props.pack)
 
 const coverStyle = computed(() => {
   if (props.pack.image_link) return {}

@@ -89,7 +89,12 @@ export const api = {
      * @returns {Promise<Object>} Pack details
      */
     get: (id) => request(`/packs/${id}`),
-
+    /**
+     * Get pack metadata by id
+     * @param {number} id - Pack ID
+     * @returns {Promise<Object>} Pack details
+     */
+    get_bmsets: (id) => request(`/packs/${id}/beatmapsets`),
     /**
      * Create a new pack
      * @param {Object} data - Pack creation data
