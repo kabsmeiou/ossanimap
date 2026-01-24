@@ -134,7 +134,6 @@ const searchPack = async () => {
     loading.value = true
     error.value = null
     const qData = await api.packs.search(cursor.value, q)
-    console.log("Search results:", qData)
     cursor.value = qData.next_cursor
     packs.value = qData.items
   } catch (err) {

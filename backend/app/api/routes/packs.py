@@ -3,6 +3,9 @@ from fastapi import APIRouter, HTTPException, status, Depends
 import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 import json
+import httpx
+from fastapi.responses import StreamingResponse
+from fastapi import Query
 
 from app.db.services import list_packs_paginated, delete_pack as delete_pack_from_db, increment_pack_downloads, get_pack_by_id, get_beatmapset_list
 from app.schemas.pack import Pack, PackCreateRequest, PackResponse, PaginatedResponse
@@ -22,6 +25,40 @@ router = APIRouter(
 )
 
 logger = logging.getLogger("uvicorn.error")
+
+@router.get("/img")
+async def proxy_image(url: str = Query(..., description="Remote image URL")):
+    if not (url.startswith("https://") or url.startswith("http://")):
+        raise HTTPException(status_code=400, detail="Invalid url")
+
+    allowed_hosts = {
+        "pub-92474f7785774e91a790e086dfa6b2ef.r2.dev",  # R2 CDN for anime images
+    }
+
+    parsed = httpx.URL(url)
+    if parsed.host not in allowed_hosts:
+        raise HTTPException(status_code=403, detail=f"Host '{parsed.host}' not allowed")
+
+    try:
+        async with httpx.AsyncClient(follow_redirects=True, timeout=15) as client:
+            r = await client.get(url)
+            r.raise_for_status()
+            content_type = r.headers.get("content-type", "image/*")
+            # Read the full content since we can't stream after context exits
+            content = await r.aread()
+            from fastapi.responses import Response
+            return Response(
+                content=content,
+                media_type=content_type,
+                headers={
+                    "Cache-Control": "public, max-age=86400"
+                },
+            )
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail="Upstream error")
+    except httpx.RequestError as e:
+        logger.error(f"Request error proxying image: {e}")
+        raise HTTPException(status_code=502, detail="Upstream unreachable")
 
 @router.post("/", response_model=PackResponse, status_code=status.HTTP_201_CREATED)
 async def create_pack(request: PackCreateRequest):

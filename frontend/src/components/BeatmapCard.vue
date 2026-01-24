@@ -8,7 +8,7 @@
         <!-- Future place for mode icons -->
       </div>
       <!-- use pack.image_link for the cover image and ensure to center -->
-      <img v-if="pack.image_link" :src="pack.image_link" alt="Anime cover image" loading="lazy" class="cover-image"/>
+      <img v-if="proxySrc" :src="proxySrc" class="cover-image" />
     </div>
     <div class="content">
       <div class="header">
@@ -115,6 +115,14 @@ const {
       console.error('Failed to refresh pack data:', err)
     }
   }
+})
+
+import { API_BASE_URL } from '../api/index'
+
+const proxySrc = computed(() => {
+  const raw = props.pack?.image_link
+  if (!raw) return ''
+  return `${API_BASE_URL}/packs/img?url=${encodeURIComponent(raw)}`
 })
 
 // Wrap the composable's handleDownloadClick to pass pack and disabled
