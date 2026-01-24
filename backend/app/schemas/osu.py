@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from typing import Any, List, Optional, Union
 import enum
 
@@ -21,3 +21,5 @@ class Beatmapset(BaseModel):
     title_unicode: str = Field(..., description="title in unicode")
     source: str = Field(..., description="source")
     status: str = Field(..., description="status")
+    creator: str = Field(..., description="mapper")
+    cover_card: str = Field(..., description="cover image link")

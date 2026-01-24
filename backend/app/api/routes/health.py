@@ -1,5 +1,4 @@
-from fastapi import APIRouter, HTTPException, status
-from typing import List
+from fastapi import APIRouter, status
 import logging
 
 from app.services.animethemes import check_animethemes_api

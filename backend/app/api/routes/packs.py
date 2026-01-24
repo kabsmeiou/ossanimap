@@ -77,7 +77,8 @@ async def get_beatmapset_metadata(pack_id: int, session: AsyncSession = Depends(
         bmsets = await fetch_beatmapsets(beatmapset_ids)  # List[Beatmapset], needs to be dumpd each
         redis_sync.set(
             str(pack_id),
-            json.dumps([b.model_dump() for b in bmsets])
+            json.dumps([b.model_dump() for b in bmsets]),
+            ex=60 * 60 * 24
         )
     else:
         data = json.loads(cached.decode('utf-8'))

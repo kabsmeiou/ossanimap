@@ -20,6 +20,19 @@ api = OssapiAsync(
 
 logger = logging.getLogger("uvicorn.error")
 
+async def perform_multiple_beatmapset_fetch_calls(
+    beatmapset_ids: list[int],
+    k: int = 5,
+):
+    semaphore = asyncio.Semaphore(k)
+
+    async def limited_fetch(beatmapset_id: int):
+        async with semaphore:
+            return await api.beatmapset(beatmapset_id)
+
+    tasks = [limited_fetch(bm_id) for bm_id in beatmapset_ids]
+    return await asyncio.gather(*tasks)
+
 async def fetch_beatmapsets(beatmapset_ids: List[int]) -> List[Beatmapset]:
     """
     Fetch beatmapset data from osu! API via Ossapi.
@@ -30,14 +43,22 @@ async def fetch_beatmapsets(beatmapset_ids: List[int]) -> List[Beatmapset]:
         Beatmapset data as a dictionary
     """
     bmsets: List[Beatmapset] = []
-    for id in beatmapset_ids:
-        try:
-            bm_data = await api.beatmapset(id)
-            beatmapset = Beatmapset.model_validate(bm_data, from_attributes=True)
-            bmsets.append(beatmapset)
-        except Exception as e:
-            logger.error(f"Error fetching beatmapset {id}: {str(e)}")
-            raise RuntimeError(f"Failed to fetch beatmapset {id}") from e
+    try:
+        results = await perform_multiple_beatmapset_fetch_calls(beatmapset_ids, k=5)
+        for bm in results:
+            bmsets.append(Beatmapset(
+                id=bm.id,
+                title=bm.title,
+                title_unicode=getattr(bm, "title_unicode", None),
+                source=getattr(bm, "source", None),
+                status=str(bm.status),
+                creator=bm.creator,
+                cover_card=getattr(getattr(bm, "covers", None), "card", None),
+            ))
+    except Exception as e:
+        logger.error(f"Error fetching beatmapsets: {e}")
+        raise RuntimeError("Failed to fetch beatmapsets") from e
+
     return bmsets
 
 def generate_search_keywords(anime_title: str) -> List[str]:
