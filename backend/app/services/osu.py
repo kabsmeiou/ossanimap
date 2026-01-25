@@ -82,10 +82,17 @@ async def search_beatmapsets(keyword: str | None = None, source: str | None = No
         keyword = f'"{keyword}"' if source is None else f'source=""{source}""'
         results = await api.search_beatmapsets(query=keyword, mode=BeatmapsetSearchMode.STANDARD.value, category="ranked")
         # get the beatmapsets from the results, ensure the beatmapset has sources
-        beatmapsets: list[Beatmapset] = [
-            Beatmapset.model_validate(bm, from_attributes=True)
-            for bm in results.beatmapsets
-        ]
+        beatmapsets: list[Beatmapset] = []
+        for bm in results.beatmapsets:
+            beatmapsets.append(Beatmapset(
+                id=bm.id,
+                title=bm.title,
+                title_unicode=getattr(bm, "title_unicode", None),
+                source=getattr(bm, "source", None),
+                status=str(bm.status),
+                creator=bm.creator,
+                cover_card=getattr(getattr(bm, "covers", None), "card", None),
+            ))
     except Exception as e:
         logger.error(f"Error searching beatmapsets with keyword '{keyword}': {str(e)}")
         raise Exception(f"Failed to search beatmapsets with keyword '{keyword}'") from e
