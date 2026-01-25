@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import JSZip from 'jszip'
 import { saveAs } from 'file-saver'
-import { downloadWithoutVideo, checkRateLimits as defaultCheckRateLimits } from '@/services/packDownload'
+import { downloadBeatmapsetsWithRateLimit, checkRateLimits as defaultCheckRateLimits } from '@/services/packDownload'
 
 export function usePackDownload(options = {}) {
   const {
@@ -16,7 +16,7 @@ export function usePackDownload(options = {}) {
 
   const showModal = ref(false)
   const isDownloading = ref(false)
-  const downloadProgress = ref({ current: 0, total: 0, downloadedMB: 0 })
+  const downloadProgress = ref({ current: 0, total: 0, downloadedMB: 0, waiting: false, waitSeconds: 0 })
 
   // pendingPack is stored so the modal confirm can call handleDownload(pendingPack)
   let pendingPack = null
@@ -55,31 +55,34 @@ export function usePackDownload(options = {}) {
     if (!ids.length) return
 
     isDownloading.value = true
-    downloadProgress.value = { current: 0, total: ids.length, downloadedMB: 0 }
+    downloadProgress.value = { current: 0, total: ids.length, downloadedMB: 0, waiting: false, waitSeconds: 0 }
 
     const zip = new JSZip()
     const folder = zip.folder('beatmap_pack')
 
-    const downloadPromises = ids.map(async (id) => {
-      try {
-        const blob = await downloadWithoutVideo(id)
-        folder.file(`${id}.osz`, blob)
-
-        downloadProgress.value.current += 1
-        downloadProgress.value.downloadedMB += blob.size / (1024 * 1024)
-      } catch (err) {
-        console.error(`Error downloading map ${id}:`, err)
-        downloadProgress.value.current += 1
+    // Use rate-limited sequential downloads
+    const results = await downloadBeatmapsetsWithRateLimit(ids, (progress) => {
+      downloadProgress.value = {
+        current: progress.current,
+        total: progress.total,
+        waiting: progress.waiting || false,
+        waitSeconds: progress.waitSeconds || 0,
+        downloadedMB: progress.downloadedMB || 0
       }
     })
 
-    await Promise.all(downloadPromises)
+    // Add successful downloads to zip
+    for (const result of results) {
+      if (result.blob) {
+        folder.file(`${result.id}.osz`, result.blob)
+      }
+    }
 
     const content = await zip.generateAsync({ type: 'blob' })
     saveAs(content, `${target?.name || 'osu_pack'}.zip`)
 
     isDownloading.value = false
-    downloadProgress.value = { current: 0, total: 0, downloadedMB: 0 }
+    downloadProgress.value = { current: 0, total: 0, downloadedMB: 0, waiting: false, waitSeconds: 0 }
 
     await incrementDownloadCount(target?.id)
     await refreshPackData(target?.id)

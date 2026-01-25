@@ -48,8 +48,13 @@
           <div v-if="isDownloading" class="download-progress">
             <div class="progress-content">
               <span class="progress-text">
-                Downloading {{ downloadProgress.current }} / {{ downloadProgress.total }}
-                <span class="progress-size">({{ downloadProgress.downloadedMB.toFixed(1) }} MB)</span>
+                <template v-if="downloadProgress.waiting">
+                  ⏳ Rate limited, waiting {{ downloadProgress.waitSeconds }}s...
+                </template>
+                <template v-else>
+                  Downloading {{ downloadProgress.current }} / {{ downloadProgress.total }}
+                  <span class="progress-size">({{ downloadProgress.downloadedMB.toFixed(1) }} MB)</span>
+                </template>
               </span>
               <div class="progress-bar-container">
                 <div 

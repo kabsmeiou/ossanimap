@@ -1,19 +1,3 @@
-<!-- class Pack(BaseModel):
-    """
-    Represents a collection of osu! beatmapsets grouped by anime.
-    """
-    id: int = Field(..., description="Unique pack identifier")
-    name: str = Field(..., description="Human-readable pack name")
-    anime_title: str = Field(..., description="Title of the anime")
-    image_link: Optional[str] = Field(default=None, description="Link to the anime image")
-    status: List[int] = Field(..., description="status of beatmap in the pack: 1=ranked,2=loved")
-    mode: List[int] = Field(..., description="modes of beatmap in the pack: -1=all,0=standard,1=taiko,2=catch,3=mania")
-    beatmapset_ids: List[int] = Field(..., description="List of beatmapset IDs in this pack")
-    beatmapset_count: int = Field(..., description="Total number of beatmapsets")
-    downloads: int = Field(default=0, description="Number of times this pack has been downloaded")
-    created_at: Optional[str] = Field(..., description="ISO 8601 timestamp of pack creation")
-    updated_at: Optional[str] = Field(..., description="ISO 8601 timestamp of last update")
- -->
 <template>
   <div class="pack-page">
     <header
@@ -60,8 +44,13 @@
             >
               <div v-if="isDownloading" class="download-progress">
                 <span class="progress-text">
-                  Downloading {{ downloadProgress.current }} / {{ downloadProgress.total }}
-                  <span class="progress-size">({{ downloadProgress.downloadedMB.toFixed(1) }} MB)</span>
+                  <template v-if="downloadProgress.waiting">
+                    ⏳ Rate limited, waiting {{ downloadProgress.waitSeconds }}s...
+                  </template>
+                  <template v-else>
+                    Downloading {{ downloadProgress.current }} / {{ downloadProgress.total }}
+                    <span class="progress-size">({{ downloadProgress.downloadedMB.toFixed(1) }} MB)</span>
+                  </template>
                 </span>
                 <div class="progress-bar-container">
                   <div 
