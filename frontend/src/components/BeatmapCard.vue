@@ -1,6 +1,6 @@
 <template>
   <article class="card" @mouseenter="mouseHover = true" @mouseleave="mouseHover = false">
-    <router-link to="/pack/{id}"></router-link>
+    <router-link :to="{ name: 'PackDetail', params: { packId: pack.id } }" class="link"></router-link>
     <div class="card-content">
     <div class="cover" :style="coverStyle">
       <div class="gradient-overlay"></div>
@@ -11,11 +11,11 @@
       <img v-if="proxySrc" :src="proxySrc" class="cover-image" />
     </div>
     <div class="content">
+      <div class="pack-name">
+        {{ pack.name }}
+      </div>
       <div class="header">
         <div class="title-section">
-          <router-link :to="{ name: 'PackDetail', params: { packId: pack.id } }" class="pack-name">
-              {{ pack.name }}
-          </router-link>
           <span class="anime-badge">{{ pack.anime_title }}</span>
         </div>
       </div>
@@ -193,7 +193,14 @@ const formatNumber = (num) => {
     transparent
   );
 }
-
+.link {
+  position: absolute;
+  inset: 0;
+}
+.link:hover {
+  cursor: pointer;
+  background-color: unset;
+}
 .cover-image {
   width: 160px;
   aspect-ratio: 2 / 3;
@@ -282,6 +289,11 @@ const formatNumber = (num) => {
   margin: 0;
   color: #1a202c;
   line-height: 1.3;
+}
+
+.pack-name:hover {
+  background-color:unset;
+  color: #667eea;
 }
 
 .anime-badge {
