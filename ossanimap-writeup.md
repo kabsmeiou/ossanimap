@@ -104,6 +104,7 @@ The idea is that when clients types in their anime, I can send a request for sea
 Bringing my learnings from my earlier projects, I wrote the routes to have as little business logic as possible. Also, in deciding what routes to build, I simply thought about what database operations or services do I need to allow my users to use. There is not much going on in the implementation of this because all of the logic being executed inside the routes are abstracted away with functions. For routes handling database operations, however, I decided to use the Depends() function to handle the async session required to interact with the database. With this, the session lasts for the duration of the request, is properly scoped (because they are not supposed to be global), and should close everytime. There is one exception to this: the *create_packs* route. This is due to the fact that the db transaction happens as a job for a worker to finish. In the first place, its not possible to serialize the session object and so it cannot be stored in the job queue.
 
 ### Task 4: Setting up models
+Now, for the models! It's all about choosing the fields that matters, the ones that we want to store and will be accessed most of the time. In this case, we care for the fields for pack and anime, assuming that pack includes the ids that we need from the beatmapsets. With these fields, we want to reduce the amount of external API calls needed for requests that are used the most. Given this, it becomes a simple task!
 
 ### Task 5: Using Async 
 
