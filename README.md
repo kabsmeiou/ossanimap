@@ -4,7 +4,7 @@ ossanimap is an osu! beatmapset packager that aggregates ranked/loved osu! beatm
 
 ### Why create ossanimap?
 
-ossanimap is created to simplify the process of searching and downloading the songs from the anime series you love! It fetches all the ranked maps associated with the anime name and bundles them into a downloadable artifact. 
+ossanimap is created to simplify the process of searching and downloading the songs from the anime series you love! It fetches all (not guaranteed) the ranked maps associated with the anime name and bundles them together for a one-click download initation!
 
 ### Who is ossanimap for?
 
@@ -112,4 +112,3 @@ That is all! You can now access the ossanimap web app at `http://localhost:5173`
 ## Usage
 
 Using ossanimap is very simple! Just enter the name of the anime you want to download the beatmapset pack for in the search bar and click on the suggestion that appears. The backend will process your request and generate a downloadable package for you.
-
