@@ -428,7 +428,7 @@ const fetchPacks = async () => {
 const handlePackUpdated = (updatedPack) => {
   const index = packs.value.findIndex(p => p.id === updatedPack.id)
   if (index !== -1) {
-    packs.value[index] = updatedPack
+    packs.value.splice(index, 1, updatedPack)
   }
 }
 
