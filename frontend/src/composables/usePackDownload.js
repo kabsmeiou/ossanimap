@@ -10,8 +10,6 @@ export function usePackDownload(options = {}) {
     checkRateLimits = defaultCheckRateLimits,
     incrementDownloadCount = async () => {},
     refreshPackData = async () => {},
-    confirmFn = (msg) => window.confirm(msg),
-    alertFn = (msg) => window.alert(msg),
     sessionKey = 'skipDownloadModal',
   } = options
 
@@ -21,6 +19,17 @@ export function usePackDownload(options = {}) {
   packsStore.cleanupStaleDownloads()
 
   const showModal = ref(false)
+  
+  // Rate limit modal state
+  const rateLimitModal = ref({
+    show: false,
+    type: 'info', // 'info', 'warning', 'error'
+    title: '',
+    message: '',
+    showConfirm: false,
+    showCancel: false,
+    showOk: true
+  })
 
   // Track the current pack being downloaded in this instance
   const currentPackId = ref(null)
@@ -40,6 +49,47 @@ export function usePackDownload(options = {}) {
   const isPackDownloading = (packId) => packsStore.isPackDownloading(packId)
   const getPackDownloadProgress = (packId) => packsStore.getDownloadProgress(packId)
 
+  // Rate limit modal helpers
+  const showRateLimitError = (message) => {
+    rateLimitModal.value = {
+      show: true,
+      type: 'error',
+      title: 'Download Blocked',
+      message,
+      showConfirm: false,
+      showCancel: false,
+      showOk: true
+    }
+  }
+
+  const showRateLimitWarning = (message) => {
+    return new Promise((resolve) => {
+      rateLimitModal.value = {
+        show: true,
+        type: 'warning',
+        title: 'Rate Limit Warning',
+        message,
+        showConfirm: true,
+        showCancel: true,
+        showOk: false,
+        onConfirm: () => resolve(true),
+        onClose: () => resolve(false)
+      }
+    })
+  }
+
+  const closeRateLimitModal = () => {
+    const onClose = rateLimitModal.value.onClose
+    rateLimitModal.value = { ...rateLimitModal.value, show: false }
+    if (onClose) onClose()
+  }
+
+  const confirmRateLimitModal = () => {
+    const onConfirm = rateLimitModal.value.onConfirm
+    rateLimitModal.value = { ...rateLimitModal.value, show: false }
+    if (onConfirm) onConfirm()
+  }
+
   // pendingPack is stored so the modal confirm can call handleDownload(pendingPack)
   let pendingPack = null
 
@@ -48,19 +98,19 @@ export function usePackDownload(options = {}) {
     
     // Check if this pack is already being downloaded
     if (packsStore.isPackDownloading(pack?.id)) {
-      alertFn('This pack is already being downloaded.')
+      showRateLimitError('This pack is already being downloaded.')
       return
     }
 
     const needed = pack?.beatmapset_ids?.length || 1
     const rateLimitCheck = await checkRateLimits(needed)
     if (!rateLimitCheck.allowed) {
-      alertFn(rateLimitCheck.message)
+      showRateLimitError(rateLimitCheck.message)
       return
     }
 
     if (rateLimitCheck.warning) {
-      const proceed = confirmFn(rateLimitCheck.warning + '\n\nDo you want to proceed?')
+      const proceed = await showRateLimitWarning(rateLimitCheck.warning)
       if (!proceed) return
     }
 
@@ -127,6 +177,7 @@ export function usePackDownload(options = {}) {
     showModal,
     isDownloading,
     downloadProgress,
+    rateLimitModal,
     
     // helpers for checking any pack's download status
     isPackDownloading,
@@ -135,5 +186,7 @@ export function usePackDownload(options = {}) {
     // actions
     handleDownloadClick,
     handleDownload,
+    closeRateLimitModal,
+    confirmRateLimitModal,
   }
 }

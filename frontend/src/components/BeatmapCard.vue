@@ -79,12 +79,24 @@
       @close="showModal = false" 
       @confirm="handleDownload"
     />
+    <RateLimitModal
+      :show="rateLimitModal.show"
+      :type="rateLimitModal.type"
+      :title="rateLimitModal.title"
+      :message="rateLimitModal.message"
+      :showConfirm="rateLimitModal.showConfirm"
+      :showCancel="rateLimitModal.showCancel"
+      :showOk="rateLimitModal.showOk"
+      @close="closeRateLimitModal"
+      @confirm="confirmRateLimitModal"
+    />
   </article>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
 import DownloadConfirmModal from './DownloadConfirmModal.vue'
+import RateLimitModal from './RateLimitModal.vue'
 import api from '../api'
 import { usePackDownload } from '@/composables/usePackDownload'
 
@@ -100,8 +112,11 @@ const {
   showModal,
   isPackDownloading,
   getPackDownloadProgress,
+  rateLimitModal,
   handleDownloadClick: _handleDownloadClick,
-  handleDownload: _handleDownload
+  handleDownload: _handleDownload,
+  closeRateLimitModal,
+  confirmRateLimitModal
 } = usePackDownload({
   incrementDownloadCount: async (packId) => {
     try {

@@ -36,6 +36,12 @@
           </div>
 
           <div class="actions">
+            <button class="back-btn" @click="$router.push('/')">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 12H5M12 19l-7-7 7-7"/>
+              </svg>
+              Back
+            </button>
             <button 
               class="download-btn" 
               :class="{ 'downloading': isDownloading }"
@@ -73,6 +79,19 @@
       @confirm="handleDownload"
     />
 
+    <!-- Rate limit warning/error modal -->
+    <RateLimitModal
+      :show="rateLimitModal.show"
+      :type="rateLimitModal.type"
+      :title="rateLimitModal.title"
+      :message="rateLimitModal.message"
+      :showConfirm="rateLimitModal.showConfirm"
+      :showCancel="rateLimitModal.showCancel"
+      :showOk="rateLimitModal.showOk"
+      @close="closeRateLimitModal"
+      @confirm="confirmRateLimitModal"
+    />
+
     <main class="container">
         <!-- Loading state -->
         <div v-if="bmsetLoading" class="loading-state">
@@ -96,6 +115,7 @@
 import { onMounted, ref, computed, watch } from 'vue'
 import BeatmapsetCard from './components/BeatmapsetCard.vue';
 import DownloadConfirmModal from './components/DownloadConfirmModal.vue';
+import RateLimitModal from './components/RateLimitModal.vue';
 import api from './api'
 import { useRoute } from 'vue-router'
 import { usePacksStore } from './stores/packs'
@@ -144,8 +164,11 @@ const {
   showModal,
   isPackDownloading,
   getPackDownloadProgress,
+  rateLimitModal,
   handleDownloadClick: _handleDownloadClick,
-  handleDownload: _handleDownload
+  handleDownload: _handleDownload,
+  closeRateLimitModal,
+  confirmRateLimitModal
 } = usePackDownload({
   incrementDownloadCount: async (packId) => {
     try {
@@ -340,6 +363,24 @@ onMounted(() => {
 .actions {
   display: flex;
   align-items: center;
+  gap: 12px;
+}
+.back-btn {
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 10px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+.back-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.5);
 }
 .download-btn {
   background: #1f9bf0;

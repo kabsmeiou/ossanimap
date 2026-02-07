@@ -18,11 +18,82 @@
             <p class="tagline">your favorite anime beatmap packs in one place</p>
           </div>
         </div>
+        
+        <!-- Rate Limit Counters -->
+        <div class="rate-limits" v-if="rateLimits">
+          <div class="limit-group">
+            <span class="limit-label">Per Minute</span>
+            <div class="limit-values">
+              <span class="limit-value" :class="getPerMinuteClass">
+                {{ rateLimits.perMinute.remaining }}/{{ rateLimits.perMinute.limit }}
+              </span>
+            </div>
+          </div>
+          <div class="limit-divider"></div>
+          <div class="limit-group">
+            <span class="limit-label">Daily</span>
+            <div class="limit-values">
+              <span class="limit-value" :class="getDailyClass">
+                {{ rateLimits.daily.remaining }}/{{ rateLimits.daily.limit }}
+              </span>
+            </div>
+          </div>
+          <button class="refresh-btn" @click="refreshRateLimits" :disabled="isRefreshing" title="Refresh rate limits">
+            <svg :class="{ 'spinning': isRefreshing }" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M23 4v6h-6"></path>
+              <path d="M1 20v-6h6"></path>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            </svg>
+          </button>
+        </div>
       </header>
       <router-view></router-view>
     </div>
   </main>
 </template>
+
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { fetchRateLimits } from '@/services/packDownload'
+
+const rateLimits = ref(null)
+const isRefreshing = ref(false)
+
+const refreshRateLimits = async () => {
+  if (isRefreshing.value) return
+  isRefreshing.value = true
+  try {
+    rateLimits.value = await fetchRateLimits()
+  } catch (err) {
+    console.error('Failed to fetch rate limits:', err)
+  } finally {
+    isRefreshing.value = false
+  }
+}
+
+const getPerMinuteClass = computed(() => {
+  if (!rateLimits.value) return ''
+  const { remaining, limit } = rateLimits.value.perMinute
+  const ratio = remaining / limit
+  if (ratio <= 0.1) return 'limit-critical'
+  if (ratio <= 0.3) return 'limit-warning'
+  return 'limit-good'
+})
+
+const getDailyClass = computed(() => {
+  if (!rateLimits.value) return ''
+  const { remaining, limit } = rateLimits.value.daily
+  const ratio = remaining / limit
+  if (ratio <= 0.1) return 'limit-critical'
+  if (ratio <= 0.3) return 'limit-warning'
+  return 'limit-good'
+})
+
+onMounted(() => {
+  refreshRateLimits()
+  setInterval(refreshRateLimits, 30000)
+})
+</script>
 
 <style scoped>
 .page {
@@ -99,6 +170,93 @@
   letter-spacing: -0.5px;
   background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
+}
+
+/* Rate limit status */
+.rate-limits {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 20px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(102, 126, 234, 0.15);
+  font-size: 13px;
+  border: 1px solid rgba(102, 126, 234, 0.1);
+}
+
+.limit-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.limit-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: #718096;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.limit-value {
+  font-weight: 700;
+  font-size: 15px;
+  color: #2d3748;
+}
+
+.limit-value.good {
+  color: #38a169;
+}
+
+.limit-value.warning {
+  color: #dd6b20;
+}
+
+.limit-value.danger {
+  color: #e53e3e;
+}
+
+.limit-divider {
+  width: 1px;
+  height: 32px;
+  background: linear-gradient(180deg, transparent, #cbd5e0, transparent);
+}
+
+.refresh-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-left: 4px;
+}
+
+.refresh-btn:hover:not(:disabled) {
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+}
+
+.refresh-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.refresh-btn svg.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 </style>

@@ -3,9 +3,13 @@
 // Per-minute rate limit tracking
 const RATE_LIMIT_PER_MINUTE = 120
 const RATE_LIMIT_WINDOW_MS = 60 * 1000 // 1 minute
+const SAFETY_BUFFER = 5 // Leave some buffer to avoid hitting exact limit
 
 // Track download timestamps for local rate limiting
 let downloadTimestamps = []
+// Track the last known server remaining count
+let lastServerRemaining = RATE_LIMIT_PER_MINUTE
+let lastServerCheck = 0
 
 /**
  * Get remaining downloads in the current minute window (local tracking)
@@ -18,10 +22,31 @@ function getLocalRemainingDownloads() {
 }
 
 /**
+ * Get effective remaining downloads (considers both local and server tracking)
+ */
+function getEffectiveRemaining() {
+  const localRemaining = getLocalRemainingDownloads()
+  // Use the more conservative estimate
+  return Math.min(localRemaining, lastServerRemaining) - SAFETY_BUFFER
+}
+
+/**
  * Record a download timestamp for local rate limiting
  */
 function recordDownload() {
   downloadTimestamps.push(Date.now())
+  // Also decrement our cached server remaining
+  if (lastServerRemaining > 0) {
+    lastServerRemaining--
+  }
+}
+
+/**
+ * Update server remaining count from API response
+ */
+function updateServerRemaining(remaining) {
+  lastServerRemaining = remaining
+  lastServerCheck = Date.now()
 }
 
 /**
@@ -32,13 +57,20 @@ function getWaitTimeMs() {
   const now = Date.now()
   downloadTimestamps = downloadTimestamps.filter(ts => now - ts < RATE_LIMIT_WINDOW_MS)
   
-  if (downloadTimestamps.length < RATE_LIMIT_PER_MINUTE) {
+  // Check if we have remaining capacity (with safety buffer)
+  const effectiveRemaining = getEffectiveRemaining()
+  if (effectiveRemaining > 0) {
     return 0
+  }
+  
+  // If no local timestamps, but server says we're out, wait a bit
+  if (downloadTimestamps.length === 0) {
+    return 5000 // Wait 5 seconds and try again
   }
   
   // Find the oldest timestamp and calculate when it will expire
   const oldestTimestamp = Math.min(...downloadTimestamps)
-  const waitTime = (oldestTimestamp + RATE_LIMIT_WINDOW_MS) - now + 100 // Add 100ms buffer
+  const waitTime = (oldestTimestamp + RATE_LIMIT_WINDOW_MS) - now + 500 // Add 500ms buffer
   return Math.max(0, waitTime)
 }
 
@@ -50,22 +82,32 @@ function sleep(ms) {
 }
 
 /**
- * Fetch current rate limits from catboy.best API
- * @returns {{ perMinute: { remaining: number, limit: number }, daily: { remaining: number, limit: number } }}
+ * Fetch current rate limits from catboy.best API and update local tracking
+ * @returns {{ perMinute: { remaining: number, limit: number }, daily: { remaining: number, limit: number }, count: { downloads: number, limited: number, blocked: number } }}
  */
 export async function fetchRateLimits() {
   const response = await fetch('https://catboy.best/api/ratelimits')
   if (!response.ok) throw new Error('Failed to fetch rate limits')
   
   const data = await response.json()
+  
+  // Update our local tracking with server's current remaining count
+  const serverRemaining = data.remaining?.download ?? RATE_LIMIT_PER_MINUTE
+  updateServerRemaining(serverRemaining)
+  
   return {
     perMinute: {
-      remaining: data.remaining?.download ?? RATE_LIMIT_PER_MINUTE,
+      remaining: serverRemaining,
       limit: data.types?.download ?? RATE_LIMIT_PER_MINUTE
     },
     daily: {
       remaining: data.daily?.remaining?.downloads ?? Infinity,
       limit: data.daily?.limit?.downloads ?? Infinity
+    },
+    count: {
+      downloads: data.count?.downloads ?? 0,
+      limited: data.count?.limited ?? 0,
+      blocked: data.count?.blocked ?? 0
     }
   }
 }
@@ -78,7 +120,22 @@ export async function fetchRateLimits() {
 export async function checkRateLimits(neededDownloads = 1) {
   try {
     const limits = await fetchRateLimits()
-    const { perMinute, daily } = limits
+    const { perMinute, daily, count } = limits
+
+    // Check if user has been limited or blocked (indicates potential ban risk)
+    if (count.blocked > 0) {
+      return {
+        allowed: false,
+        message: '🚫 Your IP has been temporarily blocked due to excessive requests. Please wait and try again later.'
+      }
+    }
+
+    if (count.limited > 50) {
+      return {
+        allowed: false,
+        message: '⚠️ Too many rate-limited requests detected. Please wait a few minutes before downloading to avoid an IP ban.'
+      }
+    }
 
     // Check daily limits first
     if (daily.remaining === 0) {
@@ -95,24 +152,32 @@ export async function checkRateLimits(neededDownloads = 1) {
       }
     }
 
-    // Check per-minute limits (informational - we'll handle throttling during download)
-    const localRemaining = getLocalRemainingDownloads()
-    const effectivePerMinute = Math.min(perMinute.remaining, localRemaining)
+    // Check per-minute limits with safety buffer
+    const effectiveRemaining = getEffectiveRemaining()
 
     let warning = null
 
+    // Warn if daily limit is getting low
     if (daily.remaining < neededDownloads * 2) {
       warning = `⚠️ Warning: Only ${daily.remaining} downloads remaining today (${daily.limit} daily limit). This pack needs ${neededDownloads} downloads.`
     }
 
-    if (neededDownloads > RATE_LIMIT_PER_MINUTE) {
-      const estimatedMinutes = Math.ceil(neededDownloads / RATE_LIMIT_PER_MINUTE)
+    // Warn about rate limiting for large packs
+    if (neededDownloads > RATE_LIMIT_PER_MINUTE - SAFETY_BUFFER) {
+      const estimatedMinutes = Math.ceil(neededDownloads / (RATE_LIMIT_PER_MINUTE - SAFETY_BUFFER))
       const additionalWarning = `⏱️ This pack has ${neededDownloads} beatmaps and will take approximately ${estimatedMinutes} minute(s) due to rate limits (${RATE_LIMIT_PER_MINUTE}/min).`
       warning = warning ? `${warning}\n\n${additionalWarning}` : additionalWarning
-    } else if (effectivePerMinute < neededDownloads) {
+    } else if (effectiveRemaining < neededDownloads) {
+      const waitMinutes = Math.ceil((neededDownloads - effectiveRemaining) / RATE_LIMIT_PER_MINUTE)
       warning = warning 
-        ? `${warning}\n\n⏱️ Per-minute rate limit low (${effectivePerMinute}/${RATE_LIMIT_PER_MINUTE}). Download may be throttled.`
-        : `⏱️ Per-minute rate limit low (${effectivePerMinute}/${RATE_LIMIT_PER_MINUTE}). Download may be throttled.`
+        ? `${warning}\n\n⏱️ Per-minute rate limit low (${Math.max(0, effectiveRemaining)}/${RATE_LIMIT_PER_MINUTE}). Download will be throttled and may take ~${waitMinutes} extra minute(s).`
+        : `⏱️ Per-minute rate limit low (${Math.max(0, effectiveRemaining)}/${RATE_LIMIT_PER_MINUTE}). Download will be throttled and may take ~${waitMinutes} extra minute(s).`
+    }
+
+    // Warn if there have been rate-limited requests
+    if (count.limited > 10) {
+      const limitWarning = `⚠️ You've hit ${count.limited} rate limits recently. Downloads will be paced carefully to avoid an IP ban.`
+      warning = warning ? `${warning}\n\n${limitWarning}` : limitWarning
     }
 
     return { allowed: true, warning }
@@ -142,22 +207,34 @@ export async function downloadWithoutVideo(id, onWaiting = null, onDownloadProgr
     await sleep(waitTime)
   }
 
-  const tryFetch = async (url) => {
+  const tryFetch = async (url, retryCount = 0) => {
     const res = await fetch(url)
     
     // Handle 429 Too Many Requests
     if (res.status === 429) {
+      if (retryCount >= 3) {
+        throw new Error('Too many rate limit retries. Please try again later.')
+      }
+      
       const retryAfter = res.headers.get('Retry-After')
-      const waitMs = retryAfter ? parseInt(retryAfter) * 1000 : 5000
+      // Use longer wait time to be safe, minimum 10 seconds
+      const waitMs = retryAfter ? Math.max(parseInt(retryAfter) * 1000, 10000) : 15000
+      
+      // Refresh rate limits from server to sync our local tracking
+      try {
+        await fetchRateLimits()
+      } catch (e) {
+        console.warn('Failed to refresh rate limits:', e)
+      }
+      
       if (onWaiting) {
         onWaiting(Math.ceil(waitMs / 1000))
       }
-      console.log(`Received 429, waiting ${Math.ceil(waitMs / 1000)}s...`)
+      console.log(`Received 429, waiting ${Math.ceil(waitMs / 1000)}s... (retry ${retryCount + 1}/3)`)
       await sleep(waitMs)
+      
       // Retry the request
-      const retryRes = await fetch(url)
-      if (!retryRes.ok) throw retryRes
-      return readResponseWithProgress(retryRes, onDownloadProgress)
+      return tryFetch(url, retryCount + 1)
     }
     
     if (!res.ok) throw res
@@ -220,10 +297,29 @@ async function readResponseWithProgress(response, onProgress) {
 export async function downloadBeatmapsetsWithRateLimit(ids, onProgress = null) {
   const results = []
   let totalDownloadedBytes = 0 // Track total bytes downloaded across all beatmaps
+  let downloadsSinceLastCheck = 0 // Track downloads since last rate limit refresh
+  const REFRESH_INTERVAL = 20 // Refresh rate limits every 20 downloads
+  
+  // Initial rate limit check
+  try {
+    await fetchRateLimits()
+  } catch (e) {
+    console.warn('Failed to fetch initial rate limits:', e)
+  }
   
   for (let i = 0; i < ids.length; i++) {
     const id = ids[i]
     let currentFileBytes = 0 // Bytes downloaded for current file
+    
+    // Periodically refresh rate limits to stay in sync with server
+    if (downloadsSinceLastCheck >= REFRESH_INTERVAL) {
+      try {
+        await fetchRateLimits()
+        downloadsSinceLastCheck = 0
+      } catch (e) {
+        console.warn('Failed to refresh rate limits:', e)
+      }
+    }
     
     if (onProgress) {
       onProgress({ 
@@ -271,10 +367,23 @@ export async function downloadBeatmapsetsWithRateLimit(ids, onProgress = null) {
       )
       
       totalDownloadedBytes += blob.size
+      downloadsSinceLastCheck++
       results.push({ id, blob })
     } catch (err) {
       console.error(`Error downloading map ${id}:`, err)
       results.push({ id, error: err })
+      
+      // If we hit a rate limit error, refresh and wait before continuing
+      if (err.message?.includes('429') || err.message?.includes('rate limit')) {
+        try {
+          await fetchRateLimits()
+          downloadsSinceLastCheck = 0
+        } catch (e) {
+          console.warn('Failed to refresh rate limits after error:', e)
+        }
+        // Wait a bit before continuing
+        await sleep(5000)
+      }
     }
     
     if (onProgress) {
