@@ -86,7 +86,7 @@ export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
 
 The backend uses uvicorn so you can run it using the command below:
 ```bash
-uv run app.main:app --reload
+uvicorn app.main:app --reload
 ```
 
 ### Step 3A: Setting up the frontend
