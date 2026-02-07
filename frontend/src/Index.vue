@@ -278,8 +278,7 @@ const pollJobStatus = (jobId) => {
 // Handle suggestion click
 // TODO. handle code returned by error from backend and show to user
 const handleSuggestionClick = async (suggestion) => {
-  requesting
-  Slug.value = suggestion.slug
+  requestingPackSlug.value = suggestion.slug
   
   const data = {
     anime: {
