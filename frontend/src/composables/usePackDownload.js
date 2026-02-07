@@ -164,6 +164,8 @@ export function usePackDownload(options = {}) {
       saveAs(content, `${target?.name || 'osu_pack'}.zip`)
 
       await incrementDownloadCount(packId)
+      // Small delay to allow background task to complete before refreshing
+      await new Promise(resolve => setTimeout(resolve, 500))
       await refreshPackData(packId)
     } finally {
       // Always finish download in store
