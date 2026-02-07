@@ -1,5 +1,5 @@
 from typing import Optional, List
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status, Depends, BackgroundTasks
 import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 import json
@@ -174,16 +174,21 @@ async def get_pack(pack_id: int, session: AsyncSession = Depends(get_session)):
     return pack
 
 # increment downloads count endpoint
-@router.get("/{pack_id}/increment-downloads", status_code=status.HTTP_200_OK)
-async def increment_downloads(pack_id: int, session: AsyncSession = Depends(get_session)):
+@router.get("/{pack_id}/increment-downloads", status_code=status.HTTP_202_ACCEPTED)
+async def increment_downloads(
+    pack_id: int, 
+    background_tasks: BackgroundTasks,
+    session: AsyncSession = Depends(get_session)
+):
     """
     Increment the download count for a specific pack by ID.
+    Runs as a background task to avoid blocking.
     
     Args:
         pack_id: The unique pack identifier
     """
-    await increment_pack_downloads(session=session, pack_id=pack_id)
-    return {"message": f"Download count incremented for pack ID {pack_id}"}
+    background_tasks.add_task(increment_pack_downloads, session=session, pack_id=pack_id)
+    return {"message": f"Download count increment queued for pack ID {pack_id}"}
 
 @router.delete("/{pack_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_pack(pack_id: int, session: AsyncSession = Depends(get_session)):
