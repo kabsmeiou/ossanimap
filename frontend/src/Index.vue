@@ -424,6 +424,14 @@ const fetchPacks = async () => {
   }
 }
 
+// Handle pack update event from BeatmapCard
+const handlePackUpdated = (updatedPack) => {
+  const index = packs.value.findIndex(p => p.id === updatedPack.id)
+  if (index !== -1) {
+    packs.value.splice(index, 1, updatedPack)
+  }
+}
+
 const filtered = computed(() => {
   let list = packs.value
   return list
@@ -645,6 +653,7 @@ const filtered = computed(() => {
             :key="pack.id" 
             :pack="pack" 
             :disabled="chimuHealthy === false" 
+            @pack-updated="handlePackUpdated"
           />
         </section>
         <!-- Loading more indicator -->

@@ -105,6 +105,8 @@ const props = defineProps({
   disabled: { type: Boolean, default: false }
 })
 
+const emit = defineEmits(['pack-updated'])
+
 const mouseHover = ref(false)
 
 // Use the reusable composable for download logic
@@ -128,8 +130,7 @@ const {
   refreshPackData: async (packId) => {
     try {
       const updatedPack = await api.packs.get(packId)
-      // Note: this won't reactively update props, but the store or parent should handle refresh
-      props.pack.downloads = updatedPack.downloads
+      emit('pack-updated', updatedPack)
     } catch (err) {
       console.error('Failed to refresh pack data:', err)
     }
