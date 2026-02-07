@@ -1,7 +1,6 @@
 <template>
   <article class="card" @mouseenter="mouseHover = true" @mouseleave="mouseHover = false">
-    <router-link :to="{ name: 'PackDetail', params: { packId: pack.id } }" class="link"></router-link>
-    <div class="card-content">
+    <router-link :to="{ name: 'PackDetail', params: { packId: pack.id } }" class="card-content">
     <div class="cover" :style="coverStyle">
       <div class="gradient-overlay"></div>
       <div class="modes-overlay">
@@ -40,7 +39,7 @@
     <!-- only show actions on hover -->
       <div class="actions" v-show="mouseHover || isDownloading">
         <button 
-          @click="handleDownloadClick" 
+          @click.stop.prevent="handleDownloadClick" 
           class="download-btn primary"
           :class="{ 'downloading': isDownloading }"
           :disabled="isDownloading || disabled"
@@ -74,7 +73,7 @@
           </div>
         </button>
       </div> 
-    </div>
+    </router-link>
     <DownloadConfirmModal 
       :show="showModal" 
       @close="showModal = false" 
@@ -99,8 +98,8 @@ const mouseHover = ref(false)
 // Use the reusable composable for download logic
 const {
   showModal,
-  isDownloading,
-  downloadProgress,
+  isPackDownloading,
+  getPackDownloadProgress,
   handleDownloadClick: _handleDownloadClick,
   handleDownload: _handleDownload
 } = usePackDownload({
@@ -123,6 +122,10 @@ const {
 })
 
 import { API_BASE_URL } from '../api/index'
+
+// Computed properties for this specific pack's download status
+const isDownloading = computed(() => isPackDownloading(props.pack?.id))
+const downloadProgress = computed(() => getPackDownloadProgress(props.pack?.id))
 
 const proxySrc = computed(() => {
   const raw = props.pack?.image_link
@@ -194,8 +197,10 @@ const formatNumber = (num) => {
   );
 }
 .link {
-  position: absolute;
-  inset: 0;
+  display: flex;
+  color: inherit;
+  text-decoration: none;
+  height: 100%;
 }
 .link:hover {
   cursor: pointer;
@@ -219,6 +224,10 @@ const formatNumber = (num) => {
 .card-content {
   display: flex;
   height: 100%;
+}
+
+.card-content:hover {
+  background-color: unset;
 }
 
 .card {

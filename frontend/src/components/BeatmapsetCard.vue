@@ -26,14 +26,6 @@
 
             <div class="actions">
                 <button class="btn ghost" @click.stop="openSet">Open</button>
-                <a
-                    v-if="downloadUrl"
-                    :href="downloadUrl"
-                    class="btn primary"
-                    @click.stop
-                >
-                    Download
-                </a>
             </div>
         </div>
     </div>
@@ -49,8 +41,6 @@ const thumbnailStyle = (() => {
     const url = props.beatmapset.cover_url || props.beatmapset.thumb || props.beatmapset.background || ''
     return url ? `url('${url}')` : 'none'
 })()
-
-const downloadUrl = props.beatmapset.download_url || props.beatmapset.url || props.beatmapset.file || ''
 
 function openSet() {
     const id = props.beatmapset.id

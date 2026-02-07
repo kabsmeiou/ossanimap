@@ -1,8 +1,9 @@
 // src/composables/usePackDownload.js
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import JSZip from 'jszip'
 import { saveAs } from 'file-saver'
 import { downloadBeatmapsetsWithRateLimit, checkRateLimits as defaultCheckRateLimits } from '@/services/packDownload'
+import { usePacksStore } from '@/stores/packs'
 
 export function usePackDownload(options = {}) {
   const {
@@ -14,15 +15,42 @@ export function usePackDownload(options = {}) {
     sessionKey = 'skipDownloadModal',
   } = options
 
+  const packsStore = usePacksStore()
+  
+  // Clean up any stale downloads on init
+  packsStore.cleanupStaleDownloads()
+
   const showModal = ref(false)
-  const isDownloading = ref(false)
-  const downloadProgress = ref({ current: 0, total: 0, downloadedMB: 0, waiting: false, waitSeconds: 0 })
+
+  // Track the current pack being downloaded in this instance
+  const currentPackId = ref(null)
+
+  // Computed properties that read from store for the current pack
+  const isDownloading = computed(() => {
+    return currentPackId.value ? packsStore.isPackDownloading(currentPackId.value) : false
+  })
+
+  const downloadProgress = computed(() => {
+    return currentPackId.value 
+      ? packsStore.getDownloadProgress(currentPackId.value)
+      : { current: 0, total: 0, downloadedMB: 0, waiting: false, waitSeconds: 0 }
+  })
+
+  // Check if a specific pack is downloading (for card components)
+  const isPackDownloading = (packId) => packsStore.isPackDownloading(packId)
+  const getPackDownloadProgress = (packId) => packsStore.getDownloadProgress(packId)
 
   // pendingPack is stored so the modal confirm can call handleDownload(pendingPack)
   let pendingPack = null
 
   const handleDownloadClick = async ({ disabled, pack }) => {
     if (disabled) return
+    
+    // Check if this pack is already being downloaded
+    if (packsStore.isPackDownloading(pack?.id)) {
+      alertFn('This pack is already being downloaded.')
+      return
+    }
 
     const needed = pack?.beatmapset_ids?.length || 1
     const rateLimitCheck = await checkRateLimits(needed)
@@ -54,38 +82,44 @@ export function usePackDownload(options = {}) {
     const ids = target?.beatmapset_ids ?? []
     if (!ids.length) return
 
-    isDownloading.value = true
-    downloadProgress.value = { current: 0, total: ids.length, downloadedMB: 0, waiting: false, waitSeconds: 0 }
+    const packId = target?.id
+    currentPackId.value = packId
+
+    // Start download in store
+    packsStore.startDownload(packId, ids.length)
 
     const zip = new JSZip()
     const folder = zip.folder('beatmap_pack')
 
-    // Use rate-limited sequential downloads
-    const results = await downloadBeatmapsetsWithRateLimit(ids, (progress) => {
-      downloadProgress.value = {
-        current: progress.current,
-        total: progress.total,
-        waiting: progress.waiting || false,
-        waitSeconds: progress.waitSeconds || 0,
-        downloadedMB: progress.downloadedMB || 0
-      }
-    })
+    try {
+      // Use rate-limited sequential downloads
+      const results = await downloadBeatmapsetsWithRateLimit(ids, (progress) => {
+        packsStore.updateDownloadProgress(packId, {
+          current: progress.current,
+          total: progress.total,
+          waiting: progress.waiting || false,
+          waitSeconds: progress.waitSeconds || 0,
+          downloadedMB: progress.downloadedMB || 0
+        })
+      })
 
-    // Add successful downloads to zip
-    for (const result of results) {
-      if (result.blob) {
-        folder.file(`${result.id}.osz`, result.blob)
+      // Add successful downloads to zip
+      for (const result of results) {
+        if (result.blob) {
+          folder.file(`${result.id}.osz`, result.blob)
+        }
       }
+
+      const content = await zip.generateAsync({ type: 'blob' })
+      saveAs(content, `${target?.name || 'osu_pack'}.zip`)
+
+      await incrementDownloadCount(packId)
+      await refreshPackData(packId)
+    } finally {
+      // Always finish download in store
+      packsStore.finishDownload(packId)
+      currentPackId.value = null
     }
-
-    const content = await zip.generateAsync({ type: 'blob' })
-    saveAs(content, `${target?.name || 'osu_pack'}.zip`)
-
-    isDownloading.value = false
-    downloadProgress.value = { current: 0, total: 0, downloadedMB: 0, waiting: false, waitSeconds: 0 }
-
-    await incrementDownloadCount(target?.id)
-    await refreshPackData(target?.id)
   }
 
   return {
@@ -93,6 +127,10 @@ export function usePackDownload(options = {}) {
     showModal,
     isDownloading,
     downloadProgress,
+    
+    // helpers for checking any pack's download status
+    isPackDownloading,
+    getPackDownloadProgress,
 
     // actions
     handleDownloadClick,

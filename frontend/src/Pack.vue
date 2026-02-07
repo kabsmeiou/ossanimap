@@ -142,8 +142,8 @@ watch(
 // Use the reusable composable for download logic
 const {
   showModal,
-  isDownloading,
-  downloadProgress,
+  isPackDownloading,
+  getPackDownloadProgress,
   handleDownloadClick: _handleDownloadClick,
   handleDownload: _handleDownload
 } = usePackDownload({
@@ -162,6 +162,10 @@ const {
     }
   }
 })
+
+// Computed properties for this specific pack's download status
+const isDownloading = computed(() => packInfo.value?.id ? isPackDownloading(packInfo.value.id) : false)
+const downloadProgress = computed(() => packInfo.value?.id ? getPackDownloadProgress(packInfo.value.id) : { current: 0, total: 0, downloadedMB: 0, waiting: false, waitSeconds: 0 })
 
 // Wrap the composable handlers to pass pack from packInfo
 const handleDownloadClick = () => _handleDownloadClick({ disabled: false, pack: packInfo.value })
