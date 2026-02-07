@@ -36,8 +36,7 @@ app = FastAPI(
 )
 
 origins = [
-    "https://ossanimap-cvcabral-adnueduphs-projects.vercel.app",
-    "https://ossanimap.vercel.app"
+    "https://ossanimap.netlify.app"
 ]
 
 app.add_middleware(
