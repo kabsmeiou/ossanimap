@@ -224,6 +224,7 @@ const formatNumber = (num) => {
 .card-content {
   display: flex;
   height: 100%;
+  padding: 0;
 }
 
 .card-content:hover {
@@ -239,6 +240,7 @@ const formatNumber = (num) => {
   overflow: hidden;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   height: 10rem;
+
 }
 /* shadow inner from left  to right with primary color*/
 .card:hover {
