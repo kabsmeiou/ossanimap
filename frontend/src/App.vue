@@ -15,7 +15,7 @@
           </div>
           <div class="header-text">
             <h1>ossanimap</h1>
-            <p class="tagline">your favorite anime beatmap packs in one place</p>
+            <p class="tagline">your favorite anime beatmaps in one place</p>
           </div>
         </div>
         
