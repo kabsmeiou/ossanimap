@@ -107,7 +107,7 @@ Bringing my learnings from my earlier projects, I wrote the routes to have as li
 Now, for the models! It's all about choosing the fields that matters, the ones that we want to store and will be accessed most of the time. In this case, we care for the fields for pack and anime, assuming that pack includes the ids that we need from the beatmapsets. With these fields, we want to reduce the amount of external API calls needed for requests that are used the most. Given this, it becomes a simple task!
 
 ### Task 5: Using Async 
-bump
+
 ### Task 6: Inserting error logs
 
 ## What's next?
