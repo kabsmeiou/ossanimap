@@ -107,6 +107,30 @@ Bringing my learnings from my earlier projects, I wrote the routes to have as li
 Now, for the models! It's all about choosing the fields that matters, the ones that we want to store and will be accessed most of the time. In this case, we care for the fields for pack and anime, assuming that pack includes the ids that we need from the beatmapsets. With these fields, we want to reduce the amount of external API calls needed for requests that are used the most. Given this, it becomes a simple task!
 
 ### Task 5: Using Async 
+<<<<<<< Updated upstream
+=======
+Ossanimap adopted an asynchronous approach for backend processes. This is important because the app is highly reliant on external services which means uncontrollable circumstances may happen(e.g network delays, external server errors, patches, etc.). With a particular concern on network delays, adopting a synchronous approach makes the program wait and do nothing. That is not what we want. For example, in my implementation for performing multiple search calls:
+```py
+# so we dont accidentally spam osu! api with bunch of requests at once
+# we use semaphore to limit concurrent requests
+async def perform_multiple_search_calls(
+    keywords: list[str],
+    k: int
+) -> list[Beatmapset]:
+    semaphore = asyncio.Semaphore(k)
+
+    async def limited_search(keyword: str) -> list[Beatmapset]:
+        async with semaphore:
+            return await search_beatmapsets(keyword)
+
+    search_calls = [limited_search(keyword) for keyword in keywords]
+    results = await asyncio.gather(*search_calls)
+
+    # flatten list[list[Beatmapset]] → list[Beatmapset]
+    return [bm for batch in results for bm in batch]
+```
+here, I use `asyncio.gather()` to perform concurrent searches, while utilizing a *Semaphore* to limit the maximum simultaneuous calls. Most implementations across the codebase uses async for the aforementioned concerns, while functions without db or network interactions stay synchronous.
+>>>>>>> Stashed changes
 
 ### Task 6: Inserting error logs
 
