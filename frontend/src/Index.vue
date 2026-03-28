@@ -54,12 +54,12 @@ const fetchRateLimits = async () => {
     const data = await response.json()
     rateLimitInfo.value = data
     rateLimitError.value = false
-    
-    // Show warning if downloads are getting low
-    const remaining = data.daily.remaining.downloads
-    const total = data.daily.limit.downloads
+
+    // Show warning if unit pool is getting low (Mino v5: 1200 units/min, no daily limit)
+    const remaining = data.remaining ?? 1200
+    const total = data.limit ?? 1200
     const percentRemaining = (remaining / total) * 100
-    
+
     showRateLimitWarning.value = percentRemaining <= 20 || remaining === 0
   } catch (err) {
     console.error('Failed to fetch rate limits:', err)
@@ -603,13 +603,13 @@ const filtered = computed(() => {
             <line x1="12" y1="17" x2="12.01" y2="17"></line>
           </svg>
           <div class="banner-text">
-            <strong>Download Limit Warning:</strong>
-            <span v-if="rateLimitInfo.daily.remaining.downloads === 0">
-              Daily download quota exhausted. Please try again tomorrow.
+            <strong>Rate Limit Warning:</strong>
+            <span v-if="rateLimitInfo.remaining === 0">
+              Rate limit pool exhausted. Please wait for it to reset.
             </span>
             <span v-else>
-              Only {{ rateLimitInfo.daily.remaining.downloads }} of {{ rateLimitInfo.daily.limit.downloads }} 
-              daily downloads remaining. Use wisely!
+              Only {{ rateLimitInfo.remaining }} of {{ rateLimitInfo.limit ?? 1200 }}
+              units remaining this minute. Use wisely!
             </span>
           </div>
         </div>

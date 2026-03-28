@@ -29,15 +29,6 @@
               </span>
             </div>
           </div>
-          <div class="limit-divider"></div>
-          <div class="limit-group">
-            <span class="limit-label">Daily</span>
-            <div class="limit-values">
-              <span class="limit-value" :class="getDailyClass">
-                {{ rateLimits.daily.remaining }}/{{ rateLimits.daily.limit }}
-              </span>
-            </div>
-          </div>
           <button class="refresh-btn" @click="refreshRateLimits" :disabled="isRefreshing" title="Refresh rate limits">
             <svg :class="{ 'spinning': isRefreshing }" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M23 4v6h-6"></path>
@@ -80,14 +71,6 @@ const getPerMinuteClass = computed(() => {
   return 'limit-good'
 })
 
-const getDailyClass = computed(() => {
-  if (!rateLimits.value) return ''
-  const { remaining, limit } = rateLimits.value.daily
-  const ratio = remaining / limit
-  if (ratio <= 0.1) return 'limit-critical'
-  if (ratio <= 0.3) return 'limit-warning'
-  return 'limit-good'
-})
 
 onMounted(() => {
   refreshRateLimits()

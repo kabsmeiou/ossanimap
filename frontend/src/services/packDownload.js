@@ -1,13 +1,15 @@
 // src/services/packDownload.js
 
-// Per-minute rate limit tracking
-const RATE_LIMIT_PER_MINUTE = 120
+// Per-minute rate limit tracking (Mino v5: 1200 units/min shared pool, downloads cost 20 units each)
+const RATE_LIMIT_PER_MINUTE = 1200
+const DOWNLOAD_COST = 20 // units per download
+const DOWNLOADS_PER_MINUTE = RATE_LIMIT_PER_MINUTE / DOWNLOAD_COST // 60 downloads/min effective
 const RATE_LIMIT_WINDOW_MS = 60 * 1000 // 1 minute
-const SAFETY_BUFFER = 5 // Leave some buffer to avoid hitting exact limit
+const SAFETY_BUFFER = 5 // Leave some buffer to avoid hitting exact limit (in downloads)
 
 // Track download timestamps for local rate limiting
 let downloadTimestamps = []
-// Track the last known server remaining count
+// Track the last known server remaining count (in units)
 let lastServerRemaining = RATE_LIMIT_PER_MINUTE
 let lastServerCheck = 0
 
@@ -18,7 +20,7 @@ function getLocalRemainingDownloads() {
   const now = Date.now()
   // Remove timestamps older than 1 minute
   downloadTimestamps = downloadTimestamps.filter(ts => now - ts < RATE_LIMIT_WINDOW_MS)
-  return RATE_LIMIT_PER_MINUTE - downloadTimestamps.length
+  return DOWNLOADS_PER_MINUTE - downloadTimestamps.length
 }
 
 /**
@@ -26,8 +28,9 @@ function getLocalRemainingDownloads() {
  */
 function getEffectiveRemaining() {
   const localRemaining = getLocalRemainingDownloads()
-  // Use the more conservative estimate
-  return Math.min(localRemaining, lastServerRemaining) - SAFETY_BUFFER
+  // Convert server units to downloads for comparison
+  const serverRemainingDownloads = Math.floor(lastServerRemaining / DOWNLOAD_COST)
+  return Math.min(localRemaining, serverRemainingDownloads) - SAFETY_BUFFER
 }
 
 /**
@@ -35,9 +38,9 @@ function getEffectiveRemaining() {
  */
 function recordDownload() {
   downloadTimestamps.push(Date.now())
-  // Also decrement our cached server remaining
+  // Also decrement our cached server remaining by the unit cost per download
   if (lastServerRemaining > 0) {
-    lastServerRemaining--
+    lastServerRemaining = Math.max(0, lastServerRemaining - DOWNLOAD_COST)
   }
 }
 
@@ -82,27 +85,24 @@ function sleep(ms) {
 }
 
 /**
- * Fetch current rate limits from catboy.best API and update local tracking
- * @returns {{ perMinute: { remaining: number, limit: number }, daily: { remaining: number, limit: number }, count: { downloads: number, limited: number, blocked: number } }}
+ * Fetch current rate limits from catboy.best API and update local tracking.
+ * Mino v5: unified unit pool (1200/min), downloads cost 20 units each.
+ * @returns {{ perMinute: { remaining: number, limit: number }, count: { downloads: number, limited: number, blocked: number } }}
  */
 export async function fetchRateLimits() {
   const response = await fetch('https://catboy.best/api/ratelimits')
   if (!response.ok) throw new Error('Failed to fetch rate limits')
-  
+
   const data = await response.json()
-  
-  // Update our local tracking with server's current remaining count
-  const serverRemaining = data.remaining?.download ?? RATE_LIMIT_PER_MINUTE
+
+  // Server reports units; update local tracking
+  const serverRemaining = data.remaining ?? RATE_LIMIT_PER_MINUTE
   updateServerRemaining(serverRemaining)
-  
+
   return {
     perMinute: {
       remaining: serverRemaining,
-      limit: data.types?.download ?? RATE_LIMIT_PER_MINUTE
-    },
-    daily: {
-      remaining: data.daily?.remaining?.downloads ?? Infinity,
-      limit: data.daily?.limit?.downloads ?? Infinity
+      limit: data.limit ?? RATE_LIMIT_PER_MINUTE
     },
     count: {
       downloads: data.count?.downloads ?? 0,
@@ -113,14 +113,15 @@ export async function fetchRateLimits() {
 }
 
 /**
- * Check rate limits from catboy.best API (both per-minute and daily).
+ * Check rate limits from catboy.best API.
+ * Mino v5: unified 1200 units/min pool, no daily limit.
  * @param {number} neededDownloads – how many beatmapset downloads you need.
  * @returns {{ allowed: boolean, message?: string, warning?: string }}
  */
 export async function checkRateLimits(neededDownloads = 1) {
   try {
     const limits = await fetchRateLimits()
-    const { perMinute, daily, count } = limits
+    const { perMinute, count } = limits
 
     // Check if user has been limited or blocked (indicates potential ban risk)
     if (count.blocked > 0) {
@@ -137,41 +138,18 @@ export async function checkRateLimits(neededDownloads = 1) {
       }
     }
 
-    // Check daily limits first
-    if (daily.remaining === 0) {
-      return {
-        allowed: false,
-        message: '⚠️ Daily download quota exceeded. Please try again tomorrow.'
-      }
-    }
-
-    if (daily.remaining < neededDownloads) {
-      return {
-        allowed: false,
-        message: `⚠️ Insufficient daily downloads remaining. You need ${neededDownloads} downloads but only have ${daily.remaining} remaining (${daily.limit} daily limit).`
-      }
-    }
-
     // Check per-minute limits with safety buffer
     const effectiveRemaining = getEffectiveRemaining()
 
     let warning = null
 
-    // Warn if daily limit is getting low
-    if (daily.remaining < neededDownloads * 2) {
-      warning = `⚠️ Warning: Only ${daily.remaining} downloads remaining today (${daily.limit} daily limit). This pack needs ${neededDownloads} downloads.`
-    }
-
     // Warn about rate limiting for large packs
-    if (neededDownloads > RATE_LIMIT_PER_MINUTE - SAFETY_BUFFER) {
-      const estimatedMinutes = Math.ceil(neededDownloads / (RATE_LIMIT_PER_MINUTE - SAFETY_BUFFER))
-      const additionalWarning = `⏱️ This pack has ${neededDownloads} beatmaps and will take approximately ${estimatedMinutes} minute(s) due to rate limits (${RATE_LIMIT_PER_MINUTE}/min).`
-      warning = warning ? `${warning}\n\n${additionalWarning}` : additionalWarning
+    if (neededDownloads > DOWNLOADS_PER_MINUTE - SAFETY_BUFFER) {
+      const estimatedMinutes = Math.ceil(neededDownloads / (DOWNLOADS_PER_MINUTE - SAFETY_BUFFER))
+      warning = `⏱️ This pack has ${neededDownloads} beatmaps and will take approximately ${estimatedMinutes} minute(s) due to rate limits (${DOWNLOADS_PER_MINUTE} downloads/min).`
     } else if (effectiveRemaining < neededDownloads) {
-      const waitMinutes = Math.ceil((neededDownloads - effectiveRemaining) / RATE_LIMIT_PER_MINUTE)
-      warning = warning 
-        ? `${warning}\n\n⏱️ Per-minute rate limit low (${Math.max(0, effectiveRemaining)}/${RATE_LIMIT_PER_MINUTE}). Download will be throttled and may take ~${waitMinutes} extra minute(s).`
-        : `⏱️ Per-minute rate limit low (${Math.max(0, effectiveRemaining)}/${RATE_LIMIT_PER_MINUTE}). Download will be throttled and may take ~${waitMinutes} extra minute(s).`
+      const waitMinutes = Math.ceil((neededDownloads - effectiveRemaining) / DOWNLOADS_PER_MINUTE)
+      warning = `⏱️ Per-minute rate limit low (${Math.max(0, effectiveRemaining)}/${DOWNLOADS_PER_MINUTE} downloads). Download will be throttled and may take ~${waitMinutes} extra minute(s).`
     }
 
     // Warn if there have been rate-limited requests
@@ -217,8 +195,14 @@ export async function downloadWithoutVideo(id, onWaiting = null, onDownloadProgr
       }
       
       const retryAfter = res.headers.get('Retry-After')
-      // Use longer wait time to be safe, minimum 10 seconds
-      const waitMs = retryAfter ? Math.max(parseInt(retryAfter) * 1000, 10000) : 15000
+      // Mino v5: Retry-After is a UTC datetime string, not seconds
+      let waitMs = 15000
+      if (retryAfter) {
+        const retryDate = new Date(retryAfter)
+        if (!isNaN(retryDate.getTime())) {
+          waitMs = Math.max(retryDate.getTime() - Date.now(), 10000)
+        }
+      }
       
       // Refresh rate limits from server to sync our local tracking
       try {
