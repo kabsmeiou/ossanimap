@@ -199,12 +199,8 @@ async def delete_pack(pack_id: int, session: AsyncSession = Depends(get_session)
         pack_id: The unique pack identifier
         session: Database session dependency
     """
-    pack = await get_pack_by_id(session, pack_id)
-    if not pack:
-        logger.exception(f"Pack with ID {pack_id} not found for deletion")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Pack with ID {pack_id} not found"
-        )
-    await delete_pack_from_db(session, pack_id)
+    try:
+        await delete_pack_from_db(session, pack_id)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     logger.info(f"Pack {pack_id} deleted successfully")

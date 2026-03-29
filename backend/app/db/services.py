@@ -93,17 +93,17 @@ async def increment_pack_downloads(session, pack_id):
     """Increments the download count for a specific pack."""
     pack = await get_pack_by_id(session, pack_id)
     pack.downloads += 1
-    await session.commit()
 
 async def delete_pack(session, pack_id):
     """
     Deletes a pack by its ID.
     """
     pack_to_delete = await session.get(PackDB, pack_id)
-    if pack_to_delete:
-        logger.info(f"Pack found. Deleting pack with ID {pack_id}")
-        await session.delete(pack_to_delete)
-        await session.commit()
+    if pack_to_delete is None:
+        logger.warning(f"Pack with ID {pack_id} not found. Cannot delete.")
+        raise ValueError(f"Pack with ID {pack_id} not found")
+    logger.info(f"Pack found. Deleting pack with ID {pack_id}")
+    await session.delete(pack_to_delete)
 
 async def get_global_stats(session) -> Stats:
     total_packs = await session.scalar(
